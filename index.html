@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subtrackr — subscription tracker</title>
+<meta name="description" content="Track subscriptions across any currency and market, and compare tiers between similar services.">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">S</span>
+      <span class="brand-name">Subtrackr</span>
+    </div>
+
+    <div class="controls">
+      <label class="ctl">
+        <span class="ctl-label">Market</span>
+        <select id="regionSelect" aria-label="Your market"></select>
+      </label>
+      <label class="ctl">
+        <span class="ctl-label">Show prices in</span>
+        <select id="currencySelect" aria-label="Display currency"></select>
+      </label>
+      <button id="themeBtn" class="icon-btn" title="Switch theme" aria-label="Switch theme">◐</button>
+    </div>
+  </div>
+
+  <nav class="wrap tabs" role="tablist">
+    <button class="tab is-active" data-tab="dashboard" role="tab">Dashboard</button>
+    <button class="tab" data-tab="browse" role="tab">Browse catalogue</button>
+    <button class="tab" data-tab="compare" role="tab">Compare</button>
+    <button class="tab" data-tab="settings" role="tab">Data</button>
+  </nav>
+</header>
+
+<main class="wrap">
+
+  <!-- ───────────────────────── DASHBOARD ───────────────────────── -->
+  <section id="panel-dashboard" class="panel is-active">
+
+    <div class="panel-head">
+      <div>
+        <h1>Your subscriptions</h1>
+        <p class="sub" id="dashSub">Nothing tracked yet.</p>
+      </div>
+      <div class="panel-actions">
+        <button class="btn btn-primary" id="addFromCatalogBtn">+ Add subscription</button>
+        <button class="btn" id="addCustomBtn">Custom…</button>
+      </div>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="dash-grid">
+      <section class="card chart-card">
+        <div class="card-head">
+          <h2>Monthly spend by category</h2>
+          <button class="link-btn" id="tableToggle" aria-expanded="false">Show as table</button>
+        </div>
+        <div id="chart" class="viz-root"></div>
+        <div id="chartTable" class="table-wrap" hidden></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Coming up</h2></div>
+        <ul class="renewals" id="renewals"></ul>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Tracked</h2>
+        <div class="seg" id="subFilter">
+          <button class="seg-btn is-active" data-filter="active">Active</button>
+          <button class="seg-btn" data-filter="paused">Paused</button>
+          <button class="seg-btn" data-filter="all">All</button>
+        </div>
+      </div>
+      <div id="subList" class="sub-list"></div>
+    </section>
+  </section>
+
+  <!-- ───────────────────────── BROWSE ───────────────────────── -->
+  <section id="panel-browse" class="panel">
+    <div class="panel-head">
+      <div>
+        <h1>Catalogue</h1>
+        <p class="sub"><span id="catalogCount"></span> services, grouped by category and sorted by company. Prices shown for <strong id="browseRegionName"></strong>.</p>
+      </div>
+    </div>
+
+    <div class="filters">
+      <input type="search" id="search" placeholder="Search a service, company or category…" aria-label="Search catalogue">
+      <div class="chips" id="catChips"></div>
+    </div>
+
+    <div id="catalogList"></div>
+  </section>
+
+  <!-- ───────────────────────── COMPARE ───────────────────────── -->
+  <section id="panel-compare" class="panel">
+    <div class="panel-head">
+      <div>
+        <h1>Compare services</h1>
+        <p class="sub">Pick any services — every tier and its listed benefits sit side by side, priced for your market.</p>
+      </div>
+      <div class="panel-actions">
+        <button class="btn" id="clearCompare">Clear</button>
+      </div>
+    </div>
+
+    <div class="filters">
+      <input type="search" id="compareSearch" placeholder="Add a service to the comparison…" aria-label="Search services to compare">
+      <div id="compareSuggest" class="suggest" hidden></div>
+    </div>
+
+    <div class="pill-row" id="comparePills"></div>
+    <div id="compareOut" class="compare-out"></div>
+  </section>
+
+  <!-- ───────────────────────── DATA ───────────────────────── -->
+  <section id="panel-settings" class="panel">
+    <div class="panel-head"><div><h1>Your data</h1>
+      <p class="sub">Everything lives in this browser's local storage. Nothing is uploaded anywhere.</p></div></div>
+
+    <section class="card">
+      <div class="card-head"><h2>Storage</h2></div>
+      <p class="muted" id="storageInfo"></p>
+      <div class="row-btns">
+        <button class="btn" id="exportBtn">Export JSON</button>
+        <button class="btn" id="importBtn">Import JSON</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+        <button class="btn btn-danger" id="wipeBtn">Erase everything</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Exchange rates</h2></div>
+      <p class="muted" id="fxInfo"></p>
+      <div class="row-btns"><button class="btn" id="fxRefresh">Refresh rates</button></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>How pricing works</h2></div>
+      <div class="prose">
+        <p>Every catalogue price is the publisher's list price in the local currency of a market. Change <strong>Market</strong> and the same tier is re-quoted — Spotify Individual is ₹119 in India and $11.99 in the United States, and that is a real difference in what the publisher charges, not a currency conversion.</p>
+        <p>Where a publisher's exact local price isn't in the catalogue, the price is estimated from the US price and that market's typical price level for digital subscriptions, then converted. Estimates are marked <span class="est-tag">est.</span></p>
+        <p><strong>Show prices in</strong> only changes the currency the numbers are displayed in. It does not change which market's price is being quoted.</p>
+        <p class="muted">Catalogue prices are a best-effort snapshot and move constantly. Every tracked subscription keeps its own editable amount — set it to what you actually pay.</p>
+      </div>
+    </section>
+  </section>
+
+</main>
+
+<!-- ───────────────────────── MODALS ───────────────────────── -->
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h2 id="modalTitle"></h2>
+      <button class="icon-btn" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/regions.js"></script>
+<script src="js/catalog.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
