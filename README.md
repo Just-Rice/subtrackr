@@ -37,7 +37,9 @@ comparison by hand from the Compare tab.
 
 **Keep your data** — export to JSON and import it back. Nothing is ever uploaded.
 
-## Running it
+**Live at → https://just-rice.github.io/subtrackr/**
+
+## Running it locally
 
 Any static file server will do:
 
@@ -48,6 +50,19 @@ python3 -m http.server 8777
 
 Opening `index.html` directly from the filesystem works too — you just lose the live
 exchange-rate fetch.
+
+## Deploying
+
+The repository root *is* the site — there is no build step. `.github/workflows/pages.yml`
+publishes it on every push to `main`; set **Settings → Pages → Source** to
+**GitHub Actions** once and it takes over from there.
+
+If you'd rather not use the workflow, **Settings → Pages → Source → Deploy from a
+branch → `main` / `/ (root)`** serves the same files directly. `.nojekyll` keeps
+GitHub from running the files through Jekyll either way.
+
+Every asset path is relative, so the site works unchanged at a repository sub-path
+(`/subtrackr/`), at a custom domain, or from a local folder.
 
 ## How the pricing model works
 
@@ -113,11 +128,12 @@ the top of the file. `t(name, pricesByMarket, benefits, options)` — options ar
 ## Files
 
 ```
-index.html        markup and panel shells
-css/styles.css    design tokens, light and dark
-js/regions.js     50 markets, 45 currencies, fallback FX table, price-level factors
-js/catalog.js     the catalogue — 95 services, 341 tiers
-js/app.js         state, pricing maths, rendering, localStorage
+index.html                     markup and panel shells
+css/styles.css                 design tokens, light and dark
+js/regions.js                  50 markets, 45 currencies, fallback FX table, price-level factors
+js/catalog.js                  the catalogue — 95 services, 341 tiers
+js/app.js                      state, pricing maths, rendering, localStorage
+.github/workflows/pages.yml    publishes to GitHub Pages on push to main
 ```
 
 ## Licence
