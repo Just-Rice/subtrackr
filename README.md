@@ -2,7 +2,7 @@
 
 A subscription tracker that knows the price is different where you live.
 
-Pick from a catalogue of **95 services and 341 tiers** — sorted by company, grouped
+Pick from a catalogue of **130 services and 465 tiers** — sorted by company, grouped
 by category — or add your own. Change your market and every price is re-quoted:
 Spotify Individual is ₹119 in India and $11.99 in the United States, and that is a
 real difference in what Spotify charges, not a currency conversion.
@@ -85,6 +85,24 @@ Tiers flagged `only: ['IN']` are regional exclusives — Netflix Mobile, Spotify
 Amazon Prime Lite. Tiers flagged `addon: true` are excluded from "cheapest way in",
 because a $2.99 ad-free add-on isn't a way to get Prime Video.
 
+### Phone and internet plans are different
+
+Everything else in the catalogue is global. Carriers and ISPs are not: Jio does not
+exist in Germany and Verizon does not exist in India. Those services carry
+`markets: ['IN']` on the service itself, which locks every one of their tiers, and
+they simply disappear from the catalogue when you switch to a market they don't
+serve — with a line saying how many were hidden.
+
+US mobile, US broadband, India and the UK are covered with real providers. Every
+other market falls back to two generic templates, `Mobile plan` and `Home broadband`,
+which are marked `fallbackOnly: true` so they only appear where the catalogue has no
+local provider. They are a shape to edit, not a price list.
+
+Indian prepaid packs run **28 days**, so thirteen of them fall in a year rather than
+twelve. Those tiers carry `cycle: 'fourweekly'`, and the app quotes them per pack, per
+month equivalent, and per year on the correct count. Tracked subscriptions get their
+own "Every 28 days" billing cycle for the same reason.
+
 ## What's in the catalogue
 
 | Category | Services |
@@ -94,6 +112,7 @@ because a $2.99 ad-free add-on isn't a way to get Prime Video.
 | Cloud Storage, Security & Privacy | 13 |
 | Productivity, Creative & Professional Tools | 13 |
 | Artificial Intelligence | 7 |
+| Phone & Internet | 35 |
 | Gaming & Interactive Platforms | 7 |
 | Learning, Reading & News | 10 |
 | Health, Fitness & Wellness | 7 |
@@ -103,6 +122,9 @@ Every tier carries the benefits the publisher lists for it, so the comparison vi
 a like-for-like read of what each tier actually gets you.
 
 > **On price accuracy.** Catalogue prices are a best-effort snapshot taken in 2025–26.
+> Phone and broadband are the roughest of them: US carrier prices are the single-line
+> rate with autopay, which almost nobody actually pays, and broadband figures are the
+> promotional rate that steps up sharply after a year or two.
 > Publishers change them constantly, and they vary by promo, bundle, platform and tax
 > treatment. Treat them as a starting point — once a subscription is tracked, its
 > amount is yours to edit, and that edited number is what every total uses.
@@ -123,7 +145,8 @@ s('example', 'Example', 'Example Inc.', 'video.movies', '#2a78d6', 'example.com'
 
 `s(id, name, company, groupId, colour, site, blurb, tiers)` — group ids are listed at
 the top of the file. `t(name, pricesByMarket, benefits, options)` — options are
-`only`, `addon`, `billedYearly` and `y`.
+`only`, `addon`, `billedYearly`, `y` and `cycle`. A ninth argument on `s(...)` takes
+service-level options — `markets` and `fallbackOnly`.
 
 ## Files
 
@@ -131,7 +154,7 @@ the top of the file. `t(name, pricesByMarket, benefits, options)` — options ar
 index.html                     markup and panel shells
 css/styles.css                 design tokens, light and dark
 js/regions.js                  50 markets, 45 currencies, fallback FX table, price-level factors
-js/catalog.js                  the catalogue — 95 services, 341 tiers
+js/catalog.js                  the catalogue — 130 services, 465 tiers
 js/app.js                      state, pricing maths, rendering, localStorage
 .github/workflows/pages.yml    publishes to GitHub Pages on push to main
 ```

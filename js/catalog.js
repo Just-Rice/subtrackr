@@ -22,6 +22,9 @@ const CATEGORIES = [
     { id: 'cloud.storage',  name: 'Cloud Storage' },
     { id: 'cloud.passwords', name: 'Password Managers' },
     { id: 'cloud.vpn',      name: 'VPNs & Antivirus' } ] },
+  { id: 'connect', name: 'Phone & Internet', icon: '📶', groups: [
+    { id: 'connect.mobile', name: 'Mobile Plans' },
+    { id: 'connect.home',   name: 'Home Internet & Broadband' } ] },
   { id: 'work', name: 'Productivity, Creative & Professional Tools', icon: '🛠️', groups: [
     { id: 'work.creative', name: 'Creative & Design' },
     { id: 'work.notes',    name: 'Productivity & Notes' },
@@ -52,10 +55,11 @@ CATEGORIES.forEach(c => c.groups.forEach(g => { GROUP_BY_ID[g.id] = g; CATEGORY_
 function t(name, m, benefits, opts) {
   return Object.assign({ name: name, m: m || {}, benefits: benefits || [] }, opts || {});
 }
-/* service builder */
-function s(id, name, company, group, color, site, blurb, tiers) {
-  return { id: id, name: name, company: company, group: group, color: color,
-           site: site, blurb: blurb, tiers: tiers };
+/* service builder. opts.markets locks a service to the markets it is actually sold
+   in — carriers and ISPs are national, unlike everything else in the catalogue. */
+function s(id, name, company, group, color, site, blurb, tiers, opts) {
+  return Object.assign({ id: id, name: name, company: company, group: group, color: color,
+                         site: site, blurb: blurb, tiers: tiers }, opts || {});
 }
 
 const CATALOG = [];
@@ -1209,6 +1213,436 @@ s('stitchfix', 'Stitch Fix', 'Stitch Fix', 'retail.boxes', '#2C2C2C', 'stitchfix
     ['A single $49 annual fee replaces all styling fees', 'Unlimited Fixes with no per-shipment charge', 'Credited toward your first purchase'], { billedYearly: true, y: { US: 49.00, GB: 49.00 } })
 ])
 );
+
+/* ─────────────────────  PHONE & INTERNET — Mobile Plans  ─────────────────────
+   Carriers are national, so each of these is locked to its market with `markets`
+   and simply disappears when you switch to another one. US prices are the single-
+   line rate with autopay and paperless billing, which is how carriers advertise
+   them — multi-line rates are usually far lower per line. Indian prepaid packs
+   run 28 days, not a calendar month; track them on the "Every 28 days" cycle.  */
+
+CATALOG.push(
+s('verizon', 'Verizon myPlan', 'Verizon', 'connect.mobile', '#EE0000', 'verizon.com',
+  'Widest US coverage, highest list prices, and perks sold à la carte at $10 each.', [
+  t('Unlimited Welcome', { US: 65 },
+    ['Unlimited talk, text and data', '5G nationwide, deprioritised when busy', 'No mobile hotspot data', 'Perks available at $10 each']),
+  t('Unlimited Plus', { US: 80 },
+    ['5G Ultra Wideband, never deprioritised', '30GB of mobile hotspot', '2TB Verizon Cloud', 'Perks available at $10 each']),
+  t('Unlimited Ultimate', { US: 100 },
+    ['Everything in Unlimited Plus', '60GB of mobile hotspot', '10GB high-speed international data a month', 'Talk and text in 210+ countries'])
+], { markets: ['US'] }),
+
+s('att', 'AT&T Unlimited', 'AT&T', 'connect.mobile', '#00A8E0', 'att.com',
+  'Middle of the US big three; the cheapest tier caps speed rather than data.', [
+  t('Value Plus VL', { US: 50.99 },
+    ['Unlimited talk, text and data', 'Single line only, no discounts', 'No mobile hotspot', 'Slowed after network congestion']),
+  t('Unlimited Starter SL', { US: 65.99 },
+    ['Unlimited data, may slow anytime', '5GB of mobile hotspot', 'Unlimited talk and text to Mexico and Canada']),
+  t('Unlimited Extra EL', { US: 75.99 },
+    ['75GB of premium data before slowing', '30GB of mobile hotspot', '$10 off a second connected device']),
+  t('Unlimited Premium PL', { US: 85.99 },
+    ['Unlimited premium data, never deprioritised', '60GB of mobile hotspot', 'AT&T Turbo priority included', 'International roaming in 20+ countries'])
+], { markets: ['US'] }),
+
+s('tmobile', 'T-Mobile Experience', 'T-Mobile', 'connect.mobile', '#E20074', 't-mobile.com',
+  'Taxes and fees included in the advertised price, and streaming bundled at the top.', [
+  t('Essentials', { US: 60 },
+    ['Unlimited talk, text and data', 'Deprioritised after 50GB', '3G-speed mobile hotspot', 'Taxes and fees not included on this tier']),
+  t('Experience More', { US: 90 },
+    ['Unlimited premium data', '60GB of high-speed hotspot', 'Netflix and Apple TV+ on us', 'Taxes and fees included', '5GB high-speed data in 215+ countries']),
+  t('Experience Beyond', { US: 105 },
+    ['Everything in Experience More', '250GB of high-speed hotspot', '30GB high-speed international data', 'Free in-flight Wi-Fi', 'Yearly device upgrade'])
+], { markets: ['US'] }),
+
+s('mintmobile', 'Mint Mobile', 'T-Mobile', 'connect.mobile', '#74B72E', 'mintmobile.com',
+  'Prepaid on T-Mobile towers, sold in 3, 6 or 12-month blocks paid up front.', [
+  t('5GB', { US: 15 },
+    ['5GB of high-speed data a month', 'Unlimited talk and text', 'Free hotspot', 'Cheapest rate needs 12 months prepaid']),
+  t('15GB', { US: 20 },
+    ['15GB of high-speed data', 'Unlimited talk and text', 'Free calls to Mexico and Canada']),
+  t('20GB', { US: 25 },
+    ['20GB of high-speed data', 'Everything in the 15GB plan']),
+  t('Unlimited', { US: 30 },
+    ['Unlimited data, 40GB at high speed', 'Free hotspot', '10GB of data in Canada and Mexico'])
+], { markets: ['US'] }),
+
+s('visible', 'Visible', 'Verizon', 'connect.mobile', '#0B0B45', 'visible.com',
+  'Verizon-owned, app-only, one flat price with taxes and fees included.', [
+  t('Visible', { US: 25 },
+    ['Unlimited data on the Verizon network', 'Deprioritised at all times', 'Unlimited hotspot at 5Mbps', 'Taxes and fees included']),
+  t('Visible+', { US: 35 },
+    ['Unlimited premium data on 5G Ultra Wideband', 'Never deprioritised', '10GB of high-speed hotspot', 'Global calling to 30+ countries']),
+  t('Visible+ Pro', { US: 45 },
+    ['Everything in Visible+', '50GB of high-speed hotspot', 'International data in 140+ countries', 'Smartwatch line included'])
+], { markets: ['US'] }),
+
+s('googlefi', 'Google Fi Wireless', 'Google', 'connect.mobile', '#4285F4', 'fi.google.com',
+  'Switches between T-Mobile and US Cellular, with international data as standard.', [
+  t('Flexible', { US: 20 },
+    ['$20 base plus $10 a GB used', 'Data charges stop after 6GB', 'Best if you use very little data', 'International data at the same rate']),
+  t('Simply Unlimited', { US: 50 },
+    ['Unlimited data, 35GB before slowing', '5GB of hotspot', 'Calls and texts to Canada and Mexico']),
+  t('Unlimited Plus', { US: 65 },
+    ['Unlimited data, 50GB before slowing', '50GB of hotspot', 'Free data in 200+ countries', '100GB Google One storage'])
+], { markets: ['US'] }),
+
+s('metro', 'Metro by T-Mobile', 'T-Mobile', 'connect.mobile', '#FF00B4', 'metrobyt-mobile.com',
+  'T-Mobile\'s prepaid brand, sold in stores, taxes included.', [
+  t('5GB', { US: 25 },
+    ['5GB of high-speed data', 'Unlimited talk and text', 'Taxes and fees included']),
+  t('Unlimited', { US: 40 },
+    ['Unlimited data, deprioritised when busy', '5GB of hotspot', 'Taxes and fees included']),
+  t('Unlimited + 100GB Google One', { US: 50 },
+    ['Everything in Unlimited', '15GB of hotspot', '100GB Google One storage', 'Scam shield premium']),
+  t('Unlimited Plus', { US: 60 },
+    ['Unlimited premium data', '25GB of hotspot', 'Amazon Prime included', 'Yearly device upgrade'])
+], { markets: ['US'] }),
+
+s('cricket', 'Cricket Wireless', 'AT&T', 'connect.mobile', '#6CC24A', 'cricketwireless.com',
+  'AT&T\'s prepaid brand — reliable coverage, permanently deprioritised data.', [
+  t('5GB', { US: 30 },
+    ['5GB of high-speed data', 'Unlimited talk and text', 'Taxes and fees included']),
+  t('Unlimited', { US: 40 },
+    ['Unlimited data, capped at 8Mbps video', 'No mobile hotspot', 'Taxes and fees included']),
+  t('Unlimited + 15GB Hotspot', { US: 60 },
+    ['Unlimited data at full 5G speed', '15GB of mobile hotspot', 'HBO Max with ads included', 'Calls to Mexico and Canada'])
+], { markets: ['US'] })
+);
+
+CATALOG.push(
+s('jio', 'Reliance Jio', 'Reliance', 'connect.mobile', '#0A2885', 'jio.com',
+  'India\'s largest network. Prepaid packs run 28 days, so you pay 13 times a year.', [
+  t('₹349 pack', { IN: 349 },
+    ['2GB a day of high-speed data', 'Unlimited voice calls', '100 SMS a day', '28-day validity', 'JioTV and JioCinema included'], { cycle: 'fourweekly' }),
+  t('₹399 pack', { IN: 399 },
+    ['2.5GB a day of high-speed data', 'Unlimited voice calls', '28-day validity', 'JioHotstar mobile included'], { cycle: 'fourweekly' }),
+  t('₹449 pack', { IN: 449 },
+    ['3GB a day of high-speed data', 'Unlimited 5G on eligible plans', '28-day validity', 'Full JioApps suite'], { cycle: 'fourweekly' }),
+  t('₹3,599 annual pack', { IN: 300 },
+    ['2.5GB a day for 365 days', 'One payment covers the year', 'Cheapest per-day rate', 'Unlimited voice and 100 SMS a day'], { billedYearly: true, y: { IN: 3599 } })
+], { markets: ['IN'] }),
+
+s('airtel', 'Airtel', 'Bharti Airtel', 'connect.mobile', '#E40000', 'airtel.in',
+  'Usually rated the best network quality in India, priced a little above Jio.', [
+  t('₹379 pack', { IN: 379 },
+    ['2GB a day of high-speed data', 'Unlimited voice calls', '100 SMS a day', '28-day validity', 'Airtel Xstream Play included'], { cycle: 'fourweekly' }),
+  t('₹409 pack', { IN: 409 },
+    ['2.5GB a day of high-speed data', 'Unlimited 5G data', '28-day validity', 'Free Apollo 24|7 Circle membership'], { cycle: 'fourweekly' }),
+  t('₹449 pack', { IN: 449 },
+    ['3GB a day of high-speed data', 'Unlimited 5G', '28-day validity', 'Xstream Play Premium'], { cycle: 'fourweekly' }),
+  t('₹3,599 annual pack', { IN: 300 },
+    ['2GB a day for 365 days', 'One payment covers the year', 'Unlimited voice and 100 SMS a day'], { billedYearly: true, y: { IN: 3599 } })
+], { markets: ['IN'] }),
+
+s('vi', 'Vi (Vodafone Idea)', 'Vodafone Idea', 'connect.mobile', '#EE1C25', 'myvi.in',
+  'The third private network — cheaper packs, patchier 5G rollout.', [
+  t('₹365 pack', { IN: 365 },
+    ['2GB a day of high-speed data', 'Unlimited voice calls', '28-day validity', 'Data delivered overnight rolls over'], { cycle: 'fourweekly' }),
+  t('₹409 pack', { IN: 409 },
+    ['2.5GB a day of high-speed data', 'Binge All Night unlimited 12am–6am', '28-day validity', 'Weekend data rollover'], { cycle: 'fourweekly' }),
+  t('₹475 pack', { IN: 475 },
+    ['3GB a day of high-speed data', 'Unlimited night data', '28-day validity', 'Vi Movies and TV included'], { cycle: 'fourweekly' })
+], { markets: ['IN'] }),
+
+s('bsnl', 'BSNL', 'BSNL', 'connect.mobile', '#F58220', 'bsnl.co.in',
+  'The state operator — by far the cheapest, with the weakest urban coverage.', [
+  t('₹199 pack', { IN: 199 },
+    ['2GB a day of high-speed data', 'Unlimited voice calls', '28-day validity', 'Cheapest daily-data pack in India'], { cycle: 'fourweekly' }),
+  t('₹347 pack (54 days)', { IN: 196 },
+    ['2GB a day of high-speed data', '₹347 charged every 54 days — shown here as its monthly equivalent',
+     'Unlimited voice and 100 SMS a day', 'Track it on the monthly cycle, or set your own']),
+  t('₹439 pack (90 days)', { IN: 148 },
+    ['3GB a day of high-speed data', '₹439 charged every 90 days — shown here as its monthly equivalent',
+     'Best value per day of any Indian pack', 'Track it on the monthly cycle, or set your own'])
+], { markets: ['IN'] })
+);
+
+CATALOG.push(
+s('ee', 'EE', 'BT Group', 'connect.mobile', '#00B5B0', 'ee.co.uk',
+  'The UK\'s fastest and most expensive network, owned by BT.', [
+  t('5GB', { GB: 16 },
+    ['5GB of data a month', 'Unlimited UK calls and texts', '5G included', 'Roam in 48 European destinations']),
+  t('25GB', { GB: 23 },
+    ['25GB of data a month', 'Unlimited calls and texts', 'One inclusive Smart Benefit', 'EU roaming included']),
+  t('Unlimited', { GB: 30 },
+    ['Unlimited data at full 5G speed', 'Three inclusive Smart Benefits', 'Tethering included', 'Roaming in 100+ destinations'])
+], { markets: ['GB'] }),
+
+s('o2', 'O2', 'Virgin Media O2', 'connect.mobile', '#0019A5', 'o2.co.uk',
+  'Strong retail presence, Priority ticket perks, mid-tier network speed.', [
+  t('10GB', { GB: 12 },
+    ['10GB of data a month', 'Unlimited calls and texts', 'O2 Priority early ticket access', 'Roam in 27 EU destinations']),
+  t('50GB', { GB: 18 },
+    ['50GB of data a month', 'Volt boost doubles data for Virgin broadband customers', 'Unlimited calls and texts']),
+  t('Unlimited', { GB: 26 },
+    ['Unlimited data', 'Tethering included', 'O2 Priority and Blue Light discounts', 'Inclusive EU roaming'])
+], { markets: ['GB'] }),
+
+s('vodafoneuk', 'Vodafone UK', 'Vodafone', 'connect.mobile', '#E60000', 'vodafone.co.uk',
+  'Merging with Three; entertainment add-ons sold alongside the data allowance.', [
+  t('20GB', { GB: 14 },
+    ['20GB of data a month', 'Unlimited calls and texts', '5G included', 'Roam-free in 50+ destinations']),
+  t('Unlimited Lite', { GB: 18 },
+    ['Unlimited data capped at 2Mbps', 'Fine for music, messaging and standard video', 'Unlimited calls and texts']),
+  t('Unlimited Max', { GB: 22 },
+    ['Unlimited data at maximum 5G speed', 'One entertainment or security add-on', 'Tethering included'])
+], { markets: ['GB'] }),
+
+s('three', 'Three UK', 'Three', 'connect.mobile', '#EE2E7B', 'three.co.uk',
+  'Cheapest unlimited data in the UK, with the most variable coverage.', [
+  t('12GB', { GB: 10 },
+    ['12GB of data a month', 'Unlimited calls and texts', '5G at no extra cost', 'Go Roam in 50+ destinations']),
+  t('Unlimited', { GB: 16 },
+    ['Genuinely unlimited data', 'Unlimited tethering', 'Unlimited calls and texts', 'Cheapest unlimited plan of the four networks']),
+  t('Unlimited+', { GB: 20 },
+    ['Everything in Unlimited', 'Priority network access at peak times', 'Three+ rewards and ticket presales'])
+], { markets: ['GB'] }),
+
+s('giffgaff', 'giffgaff', 'Virgin Media O2', 'connect.mobile', '#000000', 'giffgaff.com',
+  'SIM-only on the O2 network, no contract, run through community support.', [
+  t('10GB', { GB: 10 },
+    ['10GB of data a month', 'Unlimited calls and texts', 'No contract — change or cancel monthly', 'Unused data rolls over']),
+  t('40GB', { GB: 15 },
+    ['40GB of data a month', 'Unlimited calls and texts', 'EU roaming included', 'Data rollover']),
+  t('Unlimited', { GB: 20 },
+    ['Unlimited data', 'Unlimited calls and texts', 'Tethering included', 'Still no contract'])
+], { markets: ['GB'] })
+);
+
+/* ──────────────  PHONE & INTERNET — Home Internet & Broadband  ──────────────
+   Broadband advertises a promotional rate that steps up sharply after 12 or 24
+   months. The figure here is the promotional rate; the benefits note the step-up
+   where it is steep, and your tracked entry should hold whatever you now pay.  */
+
+CATALOG.push(
+s('xfinity', 'Xfinity Internet', 'Comcast', 'connect.home', '#0089FF', 'xfinity.com',
+  'The largest US cable ISP. Cheap for a year or two, then the price jumps.', [
+  t('Connect 300 Mbps', { US: 30 },
+    ['300 Mbps download, ~10 Mbps upload', '1.2TB monthly data cap in most markets', 'Modem rental $15 extra', 'Price roughly doubles after the promo']),
+  t('Fast 500 Mbps', { US: 45 },
+    ['500 Mbps download', 'Unlimited data on some bundles', 'Includes a year of Xfinity Mobile line in places']),
+  t('Superfast 1 Gbps', { US: 70 },
+    ['1,000 Mbps download, ~35 Mbps upload', 'xFi Complete gateway included on some terms', 'Cable upload speeds stay low']),
+  t('Gigabit Extra 1.2 Gbps', { US: 100 },
+    ['1,200 Mbps download', 'Unlimited data included', 'Whole-home Wi-Fi equipment included'])
+], { markets: ['US'] }),
+
+s('spectrum', 'Spectrum Internet', 'Charter', 'connect.home', '#0033A0', 'spectrum.com',
+  'Cable with no data caps and no term contracts, but the same promo step-up.', [
+  t('Internet 500 Mbps', { US: 50 },
+    ['500 Mbps download', 'No data caps, no contracts', 'Free modem, router $10 extra', 'Rate rises about $25 after 12 months']),
+  t('Internet Premier 1 Gbps', { US: 70 },
+    ['1,000 Mbps download', 'Free Advanced WiFi router', 'No data caps or contracts']),
+  t('Internet Gig 1.2 Gbps', { US: 90 },
+    ['1,200 Mbps download', 'Free Advanced WiFi and unlimited mobile line', 'No data caps'])
+], { markets: ['US'] }),
+
+s('attfiber', 'AT&T Fiber', 'AT&T', 'connect.home', '#00A8E0', 'att.com/internet/fiber',
+  'Symmetrical fibre — upload matches download, which cable cannot do.', [
+  t('300 Mbps', { US: 55 },
+    ['300 Mbps up and down', 'No data caps, no equipment fee', 'No annual contract', 'Price holds for 12 months']),
+  t('500 Mbps', { US: 65 },
+    ['500 Mbps symmetrical', 'Wi-Fi 6 gateway included', 'No data caps']),
+  t('1 Gbps', { US: 80 },
+    ['1,000 Mbps symmetrical', 'ActiveArmor security included', 'No data caps or contracts']),
+  t('2 Gbps', { US: 145 },
+    ['2,000 Mbps symmetrical', 'Wi-Fi 6E gateway and extender', 'HBO Max included on some terms']),
+  t('5 Gbps', { US: 245 },
+    ['5,000 Mbps symmetrical', 'Top-tier gateway and installation', 'For very heavy multi-user households'])
+], { markets: ['US'] }),
+
+s('fios', 'Verizon Fios', 'Verizon', 'connect.home', '#EE0000', 'verizon.com/home/fios',
+  'Consistently the highest-rated US home ISP, limited to the Northeast.', [
+  t('300 Mbps', { US: 50 },
+    ['300 Mbps symmetrical fibre', 'Router included', 'No data caps', 'Price guaranteed for 4 years on some terms']),
+  t('500 Mbps', { US: 75 },
+    ['500 Mbps symmetrical', 'Wi-Fi 6 router included', 'Netflix or Disney+ on some terms']),
+  t('1 Gbps', { US: 90 },
+    ['940 Mbps symmetrical', 'Whole-home Wi-Fi included', 'Streaming perk included']),
+  t('2 Gbps', { US: 110 },
+    ['2,000 Mbps symmetrical', 'Wi-Fi 7 router included', 'Highest residential tier'])
+], { markets: ['US'] }),
+
+s('tmobilehome', 'T-Mobile Home Internet', 'T-Mobile', 'connect.home', '#E20074', 't-mobile.com/home-internet',
+  '5G fixed wireless — no installation, but speed depends on local tower load.', [
+  t('Rely', { US: 50 },
+    ['Typical 87–415 Mbps download', 'No data caps or contracts', 'Gateway included, self-install in minutes', 'Price locked for 5 years']),
+  t('Amplified', { US: 60 },
+    ['Typical 133–415 Mbps download', 'Priority over Rely at busy times', 'Wi-Fi 6 gateway included']),
+  t('All-In', { US: 70 },
+    ['Highest network priority', 'Wi-Fi 7 gateway included', 'Includes Paramount+ and a Netflix credit'])
+], { markets: ['US'] }),
+
+s('starlink', 'Starlink', 'SpaceX', 'connect.home', '#000000', 'starlink.com',
+  'Low-orbit satellite — the answer where nothing else reaches. Sold in many more countries than the four priced here.', [
+  t('Residential Lite', { US: 80, GB: 75, CA: 110, AU: 139 },
+    ['Deprioritised during peak hours', 'Typically 45–130 Mbps', 'Hardware costs $349 up front', 'Unlimited data']),
+  t('Residential', { US: 120, GB: 75, CA: 140, AU: 139 },
+    ['Unlimited priority data', 'Typically 100–200 Mbps', 'No congestion throttling', 'Hardware $349 up front']),
+  t('Roam 50GB', { US: 50, GB: 40, CA: 70, AU: 60 },
+    ['50GB of mobile data anywhere in-country', 'Pause and resume any month', 'For vans, boats and second homes']),
+  t('Roam Unlimited', { US: 165, GB: 130, CA: 200, AU: 195 },
+    ['Unlimited data in motion', 'Works across continents on some terms', 'Everything in Roam 50GB'])
+], { markets: ['US', 'GB', 'CA', 'AU'] }),
+
+s('googlefiber', 'Google Fiber', 'Google', 'connect.home', '#4285F4', 'fiber.google.com',
+  'Flat pricing with no promotional step-up, in a small number of US metros.', [
+  t('Core 1 Gig', { US: 70 },
+    ['1,000 Mbps symmetrical', 'Wi-Fi 6 router included', 'No contracts, no data caps', 'The price never steps up']),
+  t('Home 3 Gig', { US: 100 },
+    ['3,000 Mbps symmetrical', 'Wi-Fi 6E router and one mesh extender', 'No installation fee']),
+  t('8 Gig', { US: 150 },
+    ['8,000 Mbps symmetrical', 'Multi-gig Wi-Fi 7 equipment', 'For home labs and heavy uploads'])
+], { markets: ['US'] })
+);
+
+CATALOG.push(
+s('jiofiber', 'JioFiber', 'Reliance', 'connect.home', '#0A2885', 'jio.com/fiber',
+  'India\'s largest fibre network, bundled hard with streaming subscriptions.', [
+  t('₹399 — 30 Mbps', { IN: 399 },
+    ['30 Mbps symmetrical', 'Unlimited data', 'Free voice calling', 'Cheapest fibre plan in India']),
+  t('₹699 — 100 Mbps', { IN: 699 },
+    ['100 Mbps symmetrical', 'Unlimited data', 'JioTV and JioCinema included', 'Free installation on annual plans']),
+  t('₹899 — 150 Mbps', { IN: 899 },
+    ['150 Mbps symmetrical', '14 OTT apps bundled including JioHotstar', 'Set-top box included']),
+  t('₹1,299 — 300 Mbps', { IN: 1299 },
+    ['300 Mbps symmetrical', 'Full OTT bundle including Netflix Basic', '4K set-top box']),
+  t('₹3,999 — 1 Gbps', { IN: 3999 },
+    ['1,000 Mbps symmetrical', 'Every bundled OTT app', 'For large households and home offices'])
+], { markets: ['IN'] }),
+
+s('airtelfiber', 'Airtel Xstream Fiber', 'Bharti Airtel', 'connect.home', '#E40000', 'airtel.in/broadband',
+  'Generally the better-rated Indian fibre service, at a small premium.', [
+  t('₹499 — 40 Mbps', { IN: 499 },
+    ['40 Mbps symmetrical', 'Unlimited data', 'Free landline calling', 'Airtel Xstream Play included']),
+  t('₹799 — 100 Mbps', { IN: 799 },
+    ['100 Mbps symmetrical', 'Unlimited data', 'Xstream Play Premium with 20+ OTT apps']),
+  t('₹999 — 200 Mbps', { IN: 999 },
+    ['200 Mbps symmetrical', 'Full OTT bundle', 'Free Wi-Fi router']),
+  t('₹1,499 — 300 Mbps', { IN: 1499 },
+    ['300 Mbps symmetrical', 'Netflix Basic and JioHotstar included', 'Priority support']),
+  t('₹3,999 — 1 Gbps', { IN: 3999 },
+    ['1,000 Mbps symmetrical', 'Every bundled OTT app', 'Dedicated relationship manager'])
+], { markets: ['IN'] }),
+
+s('actfibernet', 'ACT Fibernet', 'Atria Convergence', 'connect.home', '#00A94F', 'actcorp.in',
+  'A regional favourite in Bengaluru, Hyderabad and Chennai; prices vary by city.', [
+  t('ACT Swift — 150 Mbps', { IN: 749 },
+    ['150 Mbps symmetrical', 'Unlimited data', 'Free router on annual plans', 'Pricing differs city to city']),
+  t('ACT Storm — 250 Mbps', { IN: 1049 },
+    ['250 Mbps symmetrical', 'Unlimited data', 'OTT bundle on annual plans']),
+  t('ACT Lightning — 400 Mbps', { IN: 1349 },
+    ['400 Mbps symmetrical', 'Unlimited data', 'Priority fault resolution'])
+], { markets: ['IN'] }),
+
+s('bsnlfiber', 'BSNL Bharat Fiber', 'BSNL', 'connect.home', '#F58220', 'bsnl.co.in',
+  'State-run fibre — cheapest per megabit, slowest to fix when it breaks.', [
+  t('₹449 — 30 Mbps', { IN: 449 },
+    ['30 Mbps symmetrical', '3.3TB monthly data, then 2 Mbps', 'Free voice calling', 'Reaches small towns others do not']),
+  t('₹799 — 100 Mbps', { IN: 799 },
+    ['100 Mbps symmetrical', '3.3TB monthly data', 'Free landline with unlimited calls']),
+  t('₹999 — 200 Mbps', { IN: 999 },
+    ['200 Mbps symmetrical', '4TB monthly data', 'Disney+ Hotstar bundled on some circles'])
+], { markets: ['IN'] })
+);
+
+CATALOG.push(
+s('btbroadband', 'BT Broadband', 'BT Group', 'connect.home', '#5514B4', 'bt.com/broadband',
+  'The UK incumbent — widest reach, strongest support, highest price.', [
+  t('Fibre Essential — 36 Mb', { GB: 28 },
+    ['36 Mb average download', 'Unlimited data', '24-month contract', 'Halo support and Wi-Fi guarantee']),
+  t('Fibre 2 — 74 Mb', { GB: 33 },
+    ['74 Mb average download', 'Unlimited data', 'Smart Hub 2 included', 'Complete Wi-Fi guarantee']),
+  t('Full Fibre 150', { GB: 40 },
+    ['150 Mb download, 30 Mb upload', 'Full fibre to the premises', 'Hybrid 4G backup connection']),
+  t('Full Fibre 500', { GB: 50 },
+    ['500 Mb download, 73 Mb upload', 'Smart Hub 2 and Wi-Fi discs', 'For large households'])
+], { markets: ['GB'] }),
+
+s('virginmedia', 'Virgin Media', 'Virgin Media O2', 'connect.home', '#CC0000', 'virginmedia.com',
+  'Fastest widely available UK download speeds, on its own cable network.', [
+  t('M125 Fibre', { GB: 28 },
+    ['132 Mb average download', 'Unlimited data', 'Hub 4 router included', '20 Mb upload — cable\'s weak spot']),
+  t('M250 Fibre', { GB: 33 },
+    ['264 Mb average download', 'Unlimited data', 'Volt boost with an O2 mobile plan']),
+  t('M500 Fibre', { GB: 40 },
+    ['516 Mb average download', 'Hub 5 router', '52 Mb upload']),
+  t('Gig1 Fibre', { GB: 45 },
+    ['1,130 Mb average download', 'Wi-Fi 6 Hub 5', '104 Mb upload', 'Fastest mass-market UK tier'])
+], { markets: ['GB'] }),
+
+s('skybroadband', 'Sky Broadband', 'Sky', 'connect.home', '#0072C9', 'sky.com/broadband',
+  'Usually bought alongside Sky TV, which is where the discounts live.', [
+  t('Essential — 36 Mb', { GB: 27 },
+    ['36 Mb average download', 'Unlimited data', 'Sky Broadband Hub', '18-month contract']),
+  t('Super Fast — 61 Mb', { GB: 30 },
+    ['61 Mb average download', 'Unlimited data', 'Sky Broadband Buddy app']),
+  t('Full Fibre 150', { GB: 38 },
+    ['150 Mb download, 27 Mb upload', 'Wi-Fi Max add-on available', 'Bundles with Sky TV']),
+  t('Full Fibre 500', { GB: 45 },
+    ['500 Mb download, 70 Mb upload', 'Sky Broadband Hub Pro', 'Wi-Fi guarantee'])
+], { markets: ['GB'] }),
+
+s('hyperoptic', 'Hyperoptic', 'Hyperoptic', 'connect.home', '#E4002B', 'hyperoptic.com',
+  'Full-fibre in apartment blocks, symmetrical, consistently top-rated for value.', [
+  t('50 Mb', { GB: 22 },
+    ['50 Mb symmetrical', 'Unlimited data', 'No mid-contract price rises', 'Only in wired buildings']),
+  t('150 Mb', { GB: 27 },
+    ['150 Mb symmetrical', 'Free router', 'Static IP available']),
+  t('500 Mb', { GB: 32 },
+    ['500 Mb symmetrical', 'Wi-Fi 6 router included', 'Upload matches download']),
+  t('1 Gb', { GB: 40 },
+    ['1,000 Mb symmetrical', 'Cheapest gigabit in the UK where available', 'Wi-Fi 6 router'])
+], { markets: ['GB'] }),
+
+s('communityfibre', 'Community Fibre', 'Community Fibre', 'connect.home', '#7B2D8E', 'communityfibre.co.uk',
+  'London-only full fibre, aggressively priced against the incumbents.', [
+  t('150 Mb', { GB: 25 },
+    ['150 Mb symmetrical', 'Unlimited data', 'No mid-contract price rises', 'London only']),
+  t('500 Mb', { GB: 28 },
+    ['500 Mb symmetrical', 'Free Wi-Fi 6 router', 'Netflix included on some terms']),
+  t('1 Gb', { GB: 32 },
+    ['1,000 Mb symmetrical', 'Wi-Fi 6 mesh included', 'Very cheap for gigabit']),
+  t('3 Gb', { GB: 55 },
+    ['3,000 Mb symmetrical', 'Multi-gig router', 'For heavy upload workloads'])
+], { markets: ['GB'] })
+);
+
+/* Templates for every market with no carriers or ISPs in the catalogue yet —
+   priced from the US figure and the local price level, so the numbers are a
+   starting point to edit rather than a real price list. */
+
+CATALOG.push(
+s('genericmobile', 'Mobile plan', 'Your carrier', 'connect.mobile', '#4a3aa7', '',
+  'A placeholder for any carrier not in the catalogue. Pick the closest tier and set your real price.', [
+  t('Small data plan', { US: 25 },
+    ['Roughly 5–15GB a month', 'Typical of a budget or prepaid carrier', 'Edit the amount to what you actually pay']),
+  t('Large data plan', { US: 45 },
+    ['Roughly 30–100GB a month', 'Typical mid-tier postpaid plan', 'Edit the amount to what you actually pay']),
+  t('Unlimited plan', { US: 70 },
+    ['Unlimited data, usually with a hotspot allowance', 'Typical flagship postpaid plan', 'Edit the amount to what you actually pay'])
+], { fallbackOnly: true }),
+
+s('genericbroadband', 'Home broadband', 'Your provider', 'connect.home', '#4a3aa7', '',
+  'A placeholder for any ISP not in the catalogue. Pick the closest speed and set your real price.', [
+  t('Entry — up to 100 Mbps', { US: 40 },
+    ['Enough for streaming and video calls in a small household', 'Edit the amount to what you actually pay']),
+  t('Mid — 100 to 500 Mbps', { US: 60 },
+    ['Comfortable for a family and several 4K streams', 'Edit the amount to what you actually pay']),
+  t('Gigabit — 1 Gbps and above', { US: 85 },
+    ['For large households, heavy uploads and home working', 'Edit the amount to what you actually pay'])
+], { fallbackOnly: true })
+);
+
+
+/* A market-locked service locks each of its tiers too, unless the tier already
+   names its own markets. Everything downstream then works off tier.only alone. */
+CATALOG.forEach(function (svc) {
+  if (!svc.markets) return;
+  svc.tiers.forEach(function (t) {
+    if (!t.only) { t.only = svc.markets; t.inheritedOnly = true; }
+  });
+});
 
 /* index built once at load */
 const SERVICE_BY_ID = Object.fromEntries(CATALOG.map(x => [x.id, x]));

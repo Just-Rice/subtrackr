@@ -97,6 +97,16 @@ function fmtMoney(amount, cur, opts) {
   return c.symbol + n;
 }
 
+const CYCLES = [
+  { id: 'weekly',     label: 'Weekly',        perMonth: 52 / 12 },
+  { id: 'fourweekly', label: 'Every 28 days', perMonth: 365.25 / 28 / 12 },
+  { id: 'monthly',    label: 'Monthly',       perMonth: 1 },
+  { id: 'quarterly',  label: 'Every 3 months', perMonth: 1 / 3 },
+  { id: 'semiannual', label: 'Every 6 months', perMonth: 1 / 6 },
+  { id: 'yearly',     label: 'Yearly',        perMonth: 1 / 12 }
+];
+const CYCLE_BY_ID = Object.fromEntries(CYCLES.map(function (c) { return [c.id, c]; }));
+
 /* Price of a tier in a given market.
    → { usd, exact, local: { amount, cur } }  |  null when the tier isn't sold there */
 function tierPrice(tier, regionCode) {
@@ -104,9 +114,18 @@ function tierPrice(tier, regionCode) {
 
   if (tier.only && tier.only.indexOf(region.code) === -1) return null;
 
+  /* A tier's price is quoted per billing period. Most are monthly; Indian prepaid
+     packs run 28 days, so 13 of them fall in a year, not 12. `perMonth` converts
+     a charge into its monthly equivalent so tiers stay comparable. */
+  const cyc = CYCLE_BY_ID[tier.cycle] || CYCLE_BY_ID.monthly;
+  function out(usd, exact, amount) {
+    return { usd: usd, monthlyUsd: usd * cyc.perMonth, exact: exact,
+             cycle: cyc, local: { amount: amount, cur: region.cur } };
+  }
+
   if (tier.m[region.code] !== undefined) {
     const amt = tier.m[region.code];
-    return { usd: amt / rate(region.cur), exact: true, local: { amount: amt, cur: region.cur } };
+    return out(amt / rate(region.cur), true, amt);
   }
 
   /* estimate from the US price (or the first price we have) and the market's price level */
@@ -121,10 +140,10 @@ function tierPrice(tier, regionCode) {
     baseUsd = (tier.m[keys[0]] / rate(src.cur)) / (src.ppp || 1);
   }
 
-  if (baseUsd === 0) return { usd: 0, exact: true, local: { amount: 0, cur: region.cur } };
+  if (baseUsd === 0) return out(0, true, 0);
 
   const localAmt = roundNice(baseUsd * region.ppp * rate(region.cur), region.cur);
-  return { usd: localAmt / rate(region.cur), exact: false, local: { amount: localAmt, cur: region.cur } };
+  return out(localAmt / rate(region.cur), false, localAmt);
 }
 
 /* what a tier costs, rendered in the display currency */
@@ -140,6 +159,27 @@ function priceLabel(tier, regionCode) {
 
 /* the cheapest way to actually get the service — add-ons are skipped, since
    they only make sense stacked on a plan you are already paying for. */
+/* Carriers and ISPs only exist in their own market. Everything else is global. */
+function availableHere(svc, regionCode) {
+  const code = regionCode || state.region;
+  if (svc.markets) return svc.markets.indexOf(code) !== -1;
+  /* A fallback template only stands in where the catalogue carries no real
+     provider for that market — it would just be noise next to actual carriers. */
+  if (svc.fallbackOnly) {
+    return !CATALOG.some(function (o) {
+      return o.group === svc.group && o.markets && o.markets.indexOf(code) !== -1;
+    });
+  }
+  return true;
+}
+
+function marketTag(svc) {
+  if (!svc.markets) return '';
+  return ' <span class="est-tag">' + svc.markets.map(function (m) {
+    return (REGION_BY_CODE[m] || {}).flag || m;
+  }).join(' ') + '</span>';
+}
+
 function cheapestPaidTier(svc, regionCode) {
   function scan(includeAddons) {
     let best = null;
@@ -147,7 +187,7 @@ function cheapestPaidTier(svc, regionCode) {
       if (t.addon && !includeAddons) return;
       const p = tierPrice(t, regionCode);
       if (!p || p.usd <= 0) return;
-      if (!best || p.usd < best.usd) best = { usd: p.usd, tier: t, price: p };
+      if (!best || p.monthlyUsd < best.usd) best = { usd: p.monthlyUsd, tier: t, price: p };
     });
     return best;
   }
@@ -155,15 +195,6 @@ function cheapestPaidTier(svc, regionCode) {
 }
 
 /* ─────────────────────────────  billing cycles  ───────────────────────────── */
-
-const CYCLES = [
-  { id: 'weekly',     label: 'Weekly',        perMonth: 52 / 12 },
-  { id: 'monthly',    label: 'Monthly',       perMonth: 1 },
-  { id: 'quarterly',  label: 'Every 3 months', perMonth: 1 / 3 },
-  { id: 'semiannual', label: 'Every 6 months', perMonth: 1 / 6 },
-  { id: 'yearly',     label: 'Yearly',        perMonth: 1 / 12 }
-];
-const CYCLE_BY_ID = Object.fromEntries(CYCLES.map(function (c) { return [c.id, c]; }));
 
 function monthlyUSD(sub) {
   const c = CYCLE_BY_ID[sub.cycle] || CYCLE_BY_ID.monthly;
@@ -174,6 +205,7 @@ function addCycle(dateStr, cycle) {
   const d = new Date(dateStr + 'T00:00:00');
   if (isNaN(d)) return dateStr;
   if (cycle === 'weekly') d.setDate(d.getDate() + 7);
+  else if (cycle === 'fourweekly') d.setDate(d.getDate() + 28);
   else if (cycle === 'monthly') d.setMonth(d.getMonth() + 1);
   else if (cycle === 'quarterly') d.setMonth(d.getMonth() + 3);
   else if (cycle === 'semiannual') d.setMonth(d.getMonth() + 6);
@@ -481,8 +513,10 @@ function renderCatalog() {
     let catCount = 0;
 
     cat.groups.forEach(function (grp) {
-      const svcs = CATALOG.filter(function (s) { return s.group === grp.id && matchesSearch(s); });
-      if (!svcs.length) return;
+      const all = CATALOG.filter(function (s) { return s.group === grp.id && matchesSearch(s); });
+      const svcs = all.filter(function (s) { return availableHere(s); });
+      const hidden = all.length - svcs.length;
+      if (!svcs.length && !hidden) return;
       catCount += svcs.length;
 
       /* sorted by company, then by service name inside each company */
@@ -490,8 +524,14 @@ function renderCatalog() {
       svcs.forEach(function (s) { (byCompany[s.company] = byCompany[s.company] || []).push(s); });
       const companies = Object.keys(byCompany).sort(function (a, b) { return a.localeCompare(b); });
 
+      const hiddenNote = hidden
+        ? '<p class="muted" style="margin:-2px 0 10px">' + hidden + ' provider' + (hidden === 1 ? '' : 's') +
+          ' hidden — not sold in ' + esc(REGION_BY_CODE[state.region].name) +
+          '. Carriers and broadband providers are national; switch market to see others.</p>'
+        : '';
+
       groupHtml.push(
-        '<div class="group-block"><div class="group-head">' + esc(grp.name) + '</div>' +
+        '<div class="group-block"><div class="group-head">' + esc(grp.name) + '</div>' + hiddenNote +
         '<div class="company-cols">' +
         companies.map(function (co) {
           const cards = byCompany[co].sort(function (a, b) { return a.name.localeCompare(b.name); })
@@ -524,7 +564,7 @@ function serviceCard(svc) {
   });
   let from = '<span class="na">not sold in this market</span>';
   if (cheap) {
-    const shown = cheap.usd * rate(state.currency);
+    const shown = cheap.usd * rate(state.currency);   /* already monthly-equivalent */
     from = 'From <strong>' + esc(fmtMoney(shown, state.currency)) + '</strong><span class="tier-cycle">/mo</span>' +
       (cheap.price.exact ? '' : ' <span class="est-tag">est.</span>') +
       '<span class="tier-cycle"> · ' + esc(cheap.tier.name) + '</span>' +
@@ -564,21 +604,26 @@ function tierCards(svc, opts) {
       priceHtml = '<div class="tier-price">Free</div>';
     } else {
       const shown = p.usd * rate(state.currency);
+      const periodic = p.cycle.id !== 'monthly' && !t.billedYearly;
       priceHtml = '<div class="tier-price">' + esc(fmtMoney(shown, state.currency)) +
-        '<span class="tier-cycle">/mo' + (t.billedYearly ? ', billed yearly' : '') + '</span></div>';
+        '<span class="tier-cycle">' + (periodic ? ' per ' + (p.cycle.id === 'fourweekly' ? '28 days' : p.cycle.label.toLowerCase()) : '/mo') +
+        (t.billedYearly ? ', billed yearly' : '') + '</span></div>';
       const native = p.local.cur !== state.currency
         ? '<div class="tier-native">' + esc(fmtMoney(p.local.amount, p.local.cur)) + ' in ' + esc(p.local.cur) + '</div>' : '';
+      const equiv = periodic
+        ? '<div class="tier-native">' + esc(fmtMoney(p.monthlyUsd * rate(state.currency), state.currency)) +
+          ' a month equivalent — ' + Math.round(p.cycle.perMonth * 12) + ' payments a year</div>' : '';
       const yearly = t.y && t.y[state.region] != null
         ? '<div class="tier-native">' + esc(fmtMoney((t.y[state.region] / rate(REGION_BY_CODE[state.region].cur)) * rate(state.currency), state.currency)) + ' charged once a year</div>'
-        : '<div class="tier-native">' + esc(fmtMoney(p.usd * 12 * rate(state.currency), state.currency)) + ' a year</div>';
-      priceHtml += native + yearly;
+        : '<div class="tier-native">' + esc(fmtMoney(p.monthlyUsd * 12 * rate(state.currency), state.currency)) + ' a year</div>';
+      priceHtml += native + equiv + yearly;
       if (!p.exact) priceHtml += '<div class="tier-native"><span class="est-tag">est.</span> not a published local price</div>';
     }
     return '<div class="tier-card' + (isCheapest ? ' is-cheapest' : '') + '">' +
       '<div class="tier-name">' + esc(t.name) +
         (isCheapest ? ' <span class="badge badge-good">cheapest paid</span>' : '') +
         (t.addon ? ' <span class="est-tag">add-on</span>' : '') +
-        (t.only ? ' <span class="est-tag">' + esc(t.only.join('/')) + ' only</span>' : '') + '</div>' +
+        (t.only && !t.inheritedOnly ? ' <span class="est-tag">' + esc(t.only.join('/')) + ' only</span>' : '') + '</div>' +
       priceHtml +
       '<ul class="benefits">' + t.benefits.map(function (b) { return '<li>' + esc(b) + '</li>'; }).join('') + '</ul>' +
       (o.addable ? '<button class="btn btn-sm" data-add-tier="' + esc(t.name) + '" data-svc="' + esc(svc.id) + '">Track this tier</button>' : '') +
@@ -638,7 +683,7 @@ function renderCompare() {
     const grp = GROUP_BY_ID[s.group];
     return '<section class="cmp-svc"><div class="cmp-svc-head">' +
       '<span class="svc-logo" style="background:' + esc(s.color) + '">' + esc(initials(s.name)) + '</span>' +
-      '<div><h2>' + esc(s.name) + '</h2><div class="svc-company">' + esc(s.company) +
+      '<div><h2>' + esc(s.name) + marketTag(s) + '</h2><div class="svc-company">' + esc(s.company) +
       (grp ? ' · ' + esc(grp.name) : '') + ' · <a href="https://' + esc(s.site) + '" target="_blank" rel="noopener">' + esc(s.site) + '</a></div></div>' +
       '<button class="btn btn-sm" style="margin-left:auto" data-cmp-add="' + esc(s.id) + '">Track a tier</button></div>' +
       '<p class="svc-blurb">' + esc(s.blurb) + '</p>' +
@@ -651,7 +696,7 @@ function renderCompare() {
 function compareSimilar(svcId) {
   const svc = SERVICE_BY_ID[svcId];
   if (!svc) return;
-  const peers = CATALOG.filter(function (s) { return s.group === svc.group; })
+  const peers = CATALOG.filter(function (s) { return s.group === svc.group && availableHere(s); })
     .sort(function (a, b) {
       if (a.id === svc.id) return -1;
       if (b.id === svc.id) return 1;
@@ -713,7 +758,7 @@ function openSubForm(sub, presetSvcId, presetTierName) {
       id: uid(), serviceId: svc.id, tierName: tier.name, name: svc.name, company: svc.company,
       group: svc.group, color: svc.color,
       amount: p ? p.local.amount : 0, cur: region.cur,
-      cycle: tier.billedYearly ? 'yearly' : 'monthly',
+      cycle: tier.billedYearly ? 'yearly' : (tier.cycle || 'monthly'),
       nextDate: '', notes: '', active: true,
       benefits: tier.benefits.slice()
     };
@@ -805,7 +850,7 @@ function openSubForm(sub, presetSvcId, presetTierName) {
             $('#fAmount').value = tier.y && tier.y[state.region] != null
               ? tier.y[state.region] : roundNice(p.local.amount * 12, p.local.cur);
           } else {
-            $('#fCycle').value = 'monthly';
+            $('#fCycle').value = tier.cycle || 'monthly';
             $('#fAmount').value = p.local.amount;
           }
           $('#fCur').value = p.local.cur;
@@ -1002,7 +1047,7 @@ function wire() {
     box.innerHTML = hits.map(function (s) {
       return '<button type="button" data-pick="' + esc(s.id) + '">' +
         '<span class="svc-logo" style="width:22px;height:22px;font-size:.625rem;background:' + esc(s.color) + '">' +
-        esc(initials(s.name)) + '</span><span>' + esc(s.name) + '</span>' +
+        esc(initials(s.name)) + '</span><span>' + esc(s.name) + marketTag(s) + '</span>' +
         '<span class="muted" style="margin-left:auto">' + esc(s.company) + '</span></button>';
     }).join('');
     box.hidden = false;
