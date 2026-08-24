@@ -16,15 +16,48 @@ const DEFAULT_STATE = {
   fx: null            /* { rates: {...}, at: epochMs } */
 };
 
+/* A fresh copy every time — Object.assign is shallow, so handing out
+   DEFAULT_STATE's own arrays would let edits leak back into the template. */
+function freshState() {
+  return Object.assign({}, DEFAULT_STATE, { subs: [], compare: [] });
+}
+
+/* Saved data can be hand-edited, imported from an old export, or written by a
+   future version. Pin the fields the whole app indexes on to known-good values
+   so one bad string cannot make pricing and availability disagree. */
+function sanitise(st) {
+  if (!REGION_BY_CODE[st.region]) st.region = DEFAULT_STATE.region;
+  if (!CURRENCIES[st.currency]) st.currency = REGION_BY_CODE[st.region].cur;
+  if (['auto', 'light', 'dark'].indexOf(st.theme) === -1) st.theme = 'auto';
+  st.subs = st.subs.filter(function (s) { return s && typeof s === 'object'; }).map(function (s) {
+    return Object.assign({}, s, {
+      id: s.id || uid(),
+      name: String(s.name == null ? 'Untitled' : s.name),
+      amount: isFinite(Number(s.amount)) ? Number(s.amount) : 0,
+      cur: CURRENCIES[s.cur] ? s.cur : DEFAULT_STATE.currency,
+      cycle: CYCLE_BY_ID[s.cycle] ? s.cycle : 'monthly',
+      nextDate: parseYmd(s.nextDate) ? s.nextDate : '',
+      benefits: Array.isArray(s.benefits) ? s.benefits : []
+    });
+  });
+  st.compare = st.compare.filter(function (id) { return SERVICE_BY_ID[id]; });
+  return st;
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return Object.assign({}, DEFAULT_STATE);
+    if (!raw) return freshState();
     const parsed = JSON.parse(raw);
-    return Object.assign({}, DEFAULT_STATE, parsed, { subs: parsed.subs || [] });
+    if (!parsed || typeof parsed !== 'object') return freshState();
+    const merged = Object.assign(freshState(), parsed, {
+      subs: Array.isArray(parsed.subs) ? parsed.subs : [],
+      compare: Array.isArray(parsed.compare) ? parsed.compare : []
+    });
+    return sanitise(merged);
   } catch (e) {
     console.warn('Could not read saved data, starting fresh.', e);
-    return Object.assign({}, DEFAULT_STATE);
+    return freshState();
   }
 }
 
@@ -37,7 +70,7 @@ function saveState() {
   }, 120);
 }
 
-const state = loadState();
+let state;   /* assigned once the helpers sanitise() leans on are defined */
 
 /* ─────────────────────────────  helpers  ───────────────────────────── */
 
@@ -70,6 +103,9 @@ function initials(name) {
 
 /* ─────────────────────────────  money  ───────────────────────────── */
 
+/* Never let a stale or hand-edited region code take the whole page down. */
+function currentRegion() { return REGION_BY_CODE[state.region] || REGION_BY_CODE.US; }
+
 function rate(cur) {
   if (state.fx && state.fx.rates && typeof state.fx.rates[cur] === 'number') return state.fx.rates[cur];
   return (CURRENCIES[cur] || CURRENCIES.USD).rate;
@@ -91,10 +127,14 @@ function fmtMoney(amount, cur, opts) {
   const c = CURRENCIES[cur] || CURRENCIES.USD;
   const o = opts || {};
   const dec = o.dec != null ? o.dec : c.dec;
-  const n = Math.abs(amount) >= 1000 && dec === 0
-    ? Math.round(amount).toLocaleString('en-US')
-    : amount.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
-  return c.symbol + n;
+  const value = Number(amount);
+  if (!isFinite(value)) return c.symbol + '—';
+  const sign = value < 0 ? '-' : '';
+  const abs = Math.abs(value);
+  const n = abs >= 1000 && dec === 0
+    ? Math.round(abs).toLocaleString('en-US')
+    : abs.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  return sign + c.symbol + n;
 }
 
 const CYCLES = [
@@ -146,22 +186,9 @@ function tierPrice(tier, regionCode) {
   return out(localAmt / rate(region.cur), false, localAmt);
 }
 
-/* what a tier costs, rendered in the display currency */
-function priceLabel(tier, regionCode) {
-  const p = tierPrice(tier, regionCode);
-  if (!p) return { html: '<span class="na">not sold here</span>', usd: null };
-  const shown = p.usd * rate(state.currency);
-  let html = '<strong>' + esc(fmtMoney(shown, state.currency)) + '</strong>';
-  html += '<span class="tier-cycle">/mo</span>';
-  if (!p.exact) html += ' <span class="est-tag" title="Estimated from the US price and this market\'s typical price level">est.</span>';
-  return { html: html, usd: p.usd, price: p };
-}
-
-/* the cheapest way to actually get the service — add-ons are skipped, since
-   they only make sense stacked on a plan you are already paying for. */
 /* Carriers and ISPs only exist in their own market. Everything else is global. */
 function availableHere(svc, regionCode) {
-  const code = regionCode || state.region;
+  const code = regionCode || currentRegion().code;
   if (svc.markets) return svc.markets.indexOf(code) !== -1;
   /* A fallback template only stands in where the catalogue carries no real
      provider for that market — it would just be noise next to actual carriers. */
@@ -180,6 +207,9 @@ function marketTag(svc) {
   }).join(' ') + '</span>';
 }
 
+/* the cheapest way to actually get the service — add-ons are skipped, since
+   they only make sense stacked on a plan you are already paying for. Tiers are
+   ranked on their monthly equivalent so a 28-day pack compares honestly. */
 function cheapestPaidTier(svc, regionCode) {
   function scan(includeAddons) {
     let best = null;
@@ -201,40 +231,74 @@ function monthlyUSD(sub) {
   return (sub.amount / rate(sub.cur)) * c.perMonth;
 }
 
-function addCycle(dateStr, cycle) {
-  const d = new Date(dateStr + 'T00:00:00');
-  if (isNaN(d)) return dateStr;
-  if (cycle === 'weekly') d.setDate(d.getDate() + 7);
-  else if (cycle === 'fourweekly') d.setDate(d.getDate() + 28);
-  else if (cycle === 'monthly') d.setMonth(d.getMonth() + 1);
-  else if (cycle === 'quarterly') d.setMonth(d.getMonth() + 3);
-  else if (cycle === 'semiannual') d.setMonth(d.getMonth() + 6);
-  else d.setFullYear(d.getFullYear() + 1);
-  return d.toISOString().slice(0, 10);
+/* Dates are handled entirely in local time. Going through toISOString() would
+   convert local midnight to UTC and land on the previous day for every timezone
+   at or ahead of Greenwich, so a renewal date drifts a day earlier each cycle. */
+function ymd(d) {
+  const pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 }
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+function parseYmd(str) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(str || ''));
+  if (!m) return null;
+  const y = Number(m[1]), mo = Number(m[2]) - 1, day = Number(m[3]);
+  const d = new Date(y, mo, day);
+  if (isNaN(d.getTime())) return null;
+  /* new Date(2026, 12, 45) happily rolls over into the following year rather
+     than failing, so reject anything that did not survive the round trip. */
+  if (d.getFullYear() !== y || d.getMonth() !== mo || d.getDate() !== day) return null;
+  return d;
+}
+
+function todayStr() { return ymd(new Date()); }
+
+/* Adding a month to the 31st must not spill into the month after next.
+   anchorDay keeps a 31st-of-the-month subscription on the 31st in the months
+   that have one, rather than sliding to the 28th permanently. */
+function addMonths(d, months, anchorDay) {
+  const day = anchorDay || d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + months);
+  const lastOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastOfMonth));
+}
+
+function addCycle(dateStr, cycle, anchorDay) {
+  const d = parseYmd(dateStr);
+  if (!d) return dateStr;
+  if (cycle === 'weekly') d.setDate(d.getDate() + 7);
+  else if (cycle === 'fourweekly') d.setDate(d.getDate() + 28);
+  else if (cycle === 'monthly') addMonths(d, 1, anchorDay);
+  else if (cycle === 'quarterly') addMonths(d, 3, anchorDay);
+  else if (cycle === 'semiannual') addMonths(d, 6, anchorDay);
+  else addMonths(d, 12, anchorDay);
+  return ymd(d);
+}
 
 function daysUntil(dateStr) {
-  if (!dateStr) return null;
-  const then = new Date(dateStr + 'T00:00:00');
-  if (isNaN(then)) return null;
-  const now = new Date(todayStr() + 'T00:00:00');
+  const then = parseYmd(dateStr);
+  if (!then) return null;
+  const now = parseYmd(todayStr());
   return Math.round((then - now) / 86400000);
 }
 
 /* roll a stale renewal date forward so "coming up" stays meaningful */
 function normalisedNext(sub) {
   if (!sub.nextDate) return null;
+  const start = parseYmd(sub.nextDate);
+  if (!start) return null;
+  const anchorDay = start.getDate();
   let d = sub.nextDate;
   let guard = 0;
-  while (daysUntil(d) < 0 && guard++ < 400) d = addCycle(d, sub.cycle);
+  /* generous enough to catch a weekly subscription abandoned for twenty years */
+  while (daysUntil(d) < 0 && guard++ < 1200) d = addCycle(d, sub.cycle, anchorDay);
   return d;
 }
 
 function fmtDate(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00');
-  if (isNaN(d)) return dateStr;
+  const d = parseYmd(dateStr);
+  if (!d) return dateStr;
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -341,7 +405,7 @@ function renderTiles() {
 
   $('#dashSub').textContent = subs.length
     ? subs.length + ' active subscription' + (subs.length === 1 ? '' : 's') + ' priced for ' +
-      REGION_BY_CODE[state.region].name + ', shown in ' + state.currency + '.'
+      currentRegion().name + ', shown in ' + state.currency + '.'
     : 'Nothing tracked yet — add one from the catalogue, or create a custom entry.';
 }
 
@@ -382,13 +446,15 @@ function renderChart() {
   const rows = Object.keys(byCat).map(function (k) { return { name: k, usd: byCat[k] }; })
     .sort(function (a, b) { return b.usd - a.usd; });
   const max = rows[0].usd || 1;
-  const total = rows.reduce(function (n, r) { return n + r.usd; }, 0);
+  const rawTotal = rows.reduce(function (n, r) { return n + r.usd; }, 0);
+  /* everything tracked could legitimately be free — never divide by that */
+  const total = rawTotal || 1;
 
   host.innerHTML = rows.map(function (r) {
     const shown = r.usd * rate(state.currency);
     const pct = Math.round((r.usd / total) * 100);
     return '<div class="bar-row" title="' + esc(r.name) + ' — ' + esc(fmtMoney(shown, state.currency)) +
-             ' a month, ' + pct + '% of the total">' +
+             (rawTotal ? ' a month, ' + pct + '% of the total' : ' a month') + '">' +
              '<div class="bar-name">' + esc(r.name) + '</div>' +
              '<div class="bar-track"><div class="bar-fill" style="width:' + Math.max(1.2, (r.usd / max) * 100) + '%"></div></div>' +
              '<div class="bar-val">' + esc(fmtMoney(shown, state.currency)) + '</div>' +
@@ -402,12 +468,12 @@ function renderChart() {
       return '<tr><td>' + esc(r.name) + '</td>' +
              '<td class="num">' + esc(fmtMoney(shown, state.currency)) + '</td>' +
              '<td class="num">' + esc(fmtMoney(shown * 12, state.currency)) + '</td>' +
-             '<td class="num">' + Math.round((r.usd / total) * 100) + '%</td></tr>';
+             '<td class="num">' + (rawTotal ? Math.round((r.usd / total) * 100) + '%' : '—') + '</td></tr>';
     }).join('') +
     '<tr><td><strong>Total</strong></td><td class="num"><strong>' +
-      esc(fmtMoney(total * rate(state.currency), state.currency)) + '</strong></td>' +
-    '<td class="num"><strong>' + esc(fmtMoney(total * 12 * rate(state.currency), state.currency)) +
-    '</strong></td><td class="num">100%</td></tr></tbody></table>';
+      esc(fmtMoney(rawTotal * rate(state.currency), state.currency)) + '</strong></td>' +
+    '<td class="num"><strong>' + esc(fmtMoney(rawTotal * 12 * rate(state.currency), state.currency)) +
+    '</strong></td><td class="num">' + (rawTotal ? '100%' : '—') + '</td></tr></tbody></table>';
 }
 
 function renderRenewals() {
@@ -499,7 +565,7 @@ function renderChips() {
 
 function renderCatalog() {
   const host = $('#catalogList');
-  const region = REGION_BY_CODE[state.region];
+  const region = REGION_BY_CODE[state.region] || REGION_BY_CODE.US;
   $('#browseRegionName').textContent = region.flag + ' ' + region.name;
   $('#catalogCount').textContent = CATALOG.length;
 
@@ -526,7 +592,7 @@ function renderCatalog() {
 
       const hiddenNote = hidden
         ? '<p class="muted" style="margin:-2px 0 10px">' + hidden + ' provider' + (hidden === 1 ? '' : 's') +
-          ' hidden — not sold in ' + esc(REGION_BY_CODE[state.region].name) +
+          ' hidden — not sold in ' + esc(currentRegion().name) +
           '. Carriers and broadband providers are national; switch market to see others.</p>'
         : '';
 
@@ -614,7 +680,7 @@ function tierCards(svc, opts) {
         ? '<div class="tier-native">' + esc(fmtMoney(p.monthlyUsd * rate(state.currency), state.currency)) +
           ' a month equivalent — ' + Math.round(p.cycle.perMonth * 12) + ' payments a year</div>' : '';
       const yearly = t.y && t.y[state.region] != null
-        ? '<div class="tier-native">' + esc(fmtMoney((t.y[state.region] / rate(REGION_BY_CODE[state.region].cur)) * rate(state.currency), state.currency)) + ' charged once a year</div>'
+        ? '<div class="tier-native">' + esc(fmtMoney((t.y[state.region] / rate(currentRegion().cur)) * rate(state.currency), state.currency)) + ' charged once a year</div>'
         : '<div class="tier-native">' + esc(fmtMoney(p.monthlyUsd * 12 * rate(state.currency), state.currency)) + ' a year</div>';
       priceHtml += native + equiv + yearly;
       if (!p.exact) priceHtml += '<div class="tier-native"><span class="est-tag">est.</span> not a published local price</div>';
@@ -663,7 +729,7 @@ function renderCompare() {
 
   const summaryTable =
     '<section class="card"><div class="card-head"><h2>Cheapest way in, ' +
-      esc(REGION_BY_CODE[state.region].name) + '</h2></div><div class="table-wrap"><table>' +
+      esc(currentRegion().name) + '</h2></div><div class="table-wrap"><table>' +
     '<thead><tr><th>Service</th><th>Company</th><th>Entry tier</th><th class="num">Per month</th>' +
     '<th class="num">Per year</th><th class="num">Tiers</th></tr></thead><tbody>' +
     summary.map(function (r) {
@@ -732,7 +798,7 @@ function openTiers(svcId) {
   if (!svc) return;
   openModal(svc.name + ' — every tier',
     '<p class="sub" style="margin-bottom:14px">' + esc(svc.company) + ' · priced for ' +
-      esc(REGION_BY_CODE[state.region].name) + ', shown in ' + esc(state.currency) +
+      esc(currentRegion().name) + ', shown in ' + esc(state.currency) +
       ' · <a href="https://' + esc(svc.site) + '" target="_blank" rel="noopener">' + esc(svc.site) + '</a></p>' +
     tierCards(svc, { addable: true }) +
     '<div class="modal-foot"><button class="btn" data-close>Close</button>' +
@@ -744,7 +810,7 @@ function openTiers(svcId) {
 function openSubForm(sub, presetSvcId, presetTierName) {
   const editing = !!sub;
   const svc = presetSvcId ? SERVICE_BY_ID[presetSvcId] : (sub && sub.serviceId ? SERVICE_BY_ID[sub.serviceId] : null);
-  const region = REGION_BY_CODE[state.region];
+  const region = currentRegion();
 
   let draft;
   if (editing) {
@@ -776,9 +842,13 @@ function openSubForm(sub, presetSvcId, presetTierName) {
     '<div class="tier-picker" id="tierPicker">' +
     svc.tiers.map(function (t) {
       const p = tierPrice(t, state.region);
+      const unit = t.billedYearly ? '/mo, billed yearly'
+        : (p && p.cycle.id === 'fourweekly') ? ' per 28 days'
+        : (p && p.cycle.id !== 'monthly') ? ' ' + p.cycle.label.toLowerCase()
+        : '/mo';
       const label = !p ? '<span class="na">not sold here</span>'
         : p.usd === 0 ? 'Free'
-        : esc(fmtMoney(p.local.amount, p.local.cur)) + '/mo' + (p.exact ? '' : ' <span class="est-tag">est.</span>');
+        : esc(fmtMoney(p.local.amount, p.local.cur)) + unit + (p.exact ? '' : ' <span class="est-tag">est.</span>');
       return '<button type="button" class="tier-pick' + (t.name === draft.tierName ? ' is-sel' : '') +
         '" data-tier="' + esc(t.name) + '">' +
         '<div class="tier-pick-top"><strong>' + esc(t.name) + '</strong><span>' + label + '</span></div>' +
@@ -934,9 +1004,11 @@ function wire() {
   });
 
   $('#regionSelect').addEventListener('change', function (e) {
-    state.region = e.target.value;
-    const r = REGION_BY_CODE[state.region];
-    if (r) { state.currency = r.cur; $('#currencySelect').value = r.cur; }
+    const r = REGION_BY_CODE[e.target.value];
+    if (!r) return;
+    state.region = r.code;
+    state.currency = r.cur;
+    $('#currencySelect').value = r.cur;
     saveState(); renderAll();
     toast('Prices now quoted for ' + r.name + '.');
   });
@@ -1068,10 +1140,13 @@ function wire() {
     const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), state: state }, null, 2)],
       { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
     a.download = 'subtrackr-' + todayStr() + '.json';
+    document.body.appendChild(a);
     a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   });
 
   $('#importBtn').addEventListener('click', function () { $('#importFile').click(); });
@@ -1084,13 +1159,13 @@ function wire() {
         const data = JSON.parse(reader.result);
         const incoming = data.state || data;
         if (!incoming || !Array.isArray(incoming.subs)) throw new Error('no subscriptions in file');
-        Object.assign(state, {
+        Object.assign(state, sanitise({
           region: incoming.region || state.region,
           currency: incoming.currency || state.currency,
           theme: incoming.theme || state.theme,
           subs: incoming.subs,
-          compare: incoming.compare || []
-        });
+          compare: Array.isArray(incoming.compare) ? incoming.compare : []
+        }));
         saveState(); buildSelects(); applyTheme(); renderAll();
         toast('Imported ' + state.subs.length + ' subscriptions.');
       } catch (err) {
@@ -1104,7 +1179,7 @@ function wire() {
   $('#wipeBtn').addEventListener('click', function () {
     if (!confirm('Erase every tracked subscription and setting from this browser? This cannot be undone.')) return;
     try { localStorage.removeItem(KEY); } catch (err) { /* ignore */ }
-    Object.assign(state, DEFAULT_STATE, { subs: [], compare: [] });
+    Object.assign(state, freshState());
     buildSelects(); applyTheme(); renderAll();
     toast('Everything erased.');
   });
@@ -1113,6 +1188,8 @@ function wire() {
 }
 
 /* ─────────────────────────────  boot  ───────────────────────────── */
+
+state = loadState();
 
 buildSelects();
 applyTheme();
