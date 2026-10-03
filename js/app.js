@@ -101,6 +101,17 @@ function initials(name) {
   return (words[0][0] + words[1][0]).toUpperCase();
 }
 
+/* Initials on a brand-colour tile: white on dark colours, near-black on light
+   ones, whichever reads better. */
+function logoInk(hex) {
+  const lin = function (i) {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const L = 0.2126 * lin(1) + 0.7152 * lin(3) + 0.0722 * lin(5);
+  return 1.05 / (L + 0.05) >= (L + 0.05) / 0.0556 ? '' : ' ink-dark';
+}
+
 /* ─────────────────────────────  money  ───────────────────────────── */
 
 /* Never let a stale or hand-edited region code take the whole page down. */
@@ -642,7 +653,7 @@ function serviceCard(svc) {
 
   return '<article class="svc-card" data-svc="' + esc(svc.id) + '">' +
     '<div class="svc-top">' +
-      '<span class="svc-logo" aria-hidden="true" style="background:' + esc(svc.color) + '">' + esc(initials(svc.name)) + '</span>' +
+      '<span class="svc-logo' + logoInk(svc.color) + '" aria-hidden="true" style="background:' + esc(svc.color) + '">' + esc(initials(svc.name)) + '</span>' +
       '<div><div class="svc-name">' + esc(svc.name) + '</div>' +
       '<div class="svc-company">' + esc(svc.company) + ' · <span class="tier-count">' + svc.tiers.length +
       ' tier' + (svc.tiers.length === 1 ? '' : 's') + '</span></div></div>' +
@@ -749,7 +760,7 @@ function renderCompare() {
   const detail = svcs.map(function (s) {
     const grp = GROUP_BY_ID[s.group];
     return '<section class="cmp-svc"><div class="cmp-svc-head">' +
-      '<span class="svc-logo" aria-hidden="true" style="background:' + esc(s.color) + '">' + esc(initials(s.name)) + '</span>' +
+      '<span class="svc-logo' + logoInk(s.color) + '" aria-hidden="true" style="background:' + esc(s.color) + '">' + esc(initials(s.name)) + '</span>' +
       '<div><h2>' + esc(s.name) + marketTag(s) + '</h2><div class="svc-company">' + esc(s.company) +
       (grp ? ' · ' + esc(grp.name) : '') + ' · <a href="https://' + esc(s.site) + '" target="_blank" rel="noopener">' + esc(s.site) + '</a></div></div>' +
       '<button class="btn btn-sm" style="margin-left:auto" data-cmp-add="' + esc(s.id) + '">Track a tier</button></div>' +
@@ -977,6 +988,7 @@ function openCatalogPicker() {
 /* ─────────────────────────────  tabs  ───────────────────────────── */
 
 function switchTab(name) {
+  const changed = !$('#panel-' + name).classList.contains('is-active');
   $$('.tab').forEach(function (t) {
     const on = t.dataset.tab === name;
     t.classList.toggle('is-active', on);
@@ -984,11 +996,19 @@ function switchTab(name) {
     t.tabIndex = on ? 0 : -1;
   });
   $$('.panel').forEach(function (p) { p.classList.toggle('is-active', p.id === 'panel-' + name); });
+  /* a new tab starts at its top, not at the previous tab's scroll depth */
+  if (changed) window.scrollTo(0, 0);
 }
 
 /* ─────────────────────────────  render all  ───────────────────────────── */
 
+function renderControlsSummary() {
+  const r = currentRegion();
+  $('#controlsSummary').textContent = r.flag + ' ' + r.name + ' · ' + state.currency;
+}
+
 function renderAll() {
+  renderControlsSummary();
   renderTiles();
   renderChart();
   renderRenewals();
@@ -1046,6 +1066,12 @@ function wire() {
   $('#themeBtn').addEventListener('click', function () {
     state.theme = state.theme === 'auto' ? 'light' : state.theme === 'light' ? 'dark' : 'auto';
     applyTheme(); saveState();
+  });
+
+  /* phones: market, currency and theme fold away behind one button */
+  $('#controlsToggle').addEventListener('click', function () {
+    const open = $('.topbar').classList.toggle('controls-open');
+    this.setAttribute('aria-expanded', String(open));
   });
 
   $('#addFromCatalogBtn').addEventListener('click', openCatalogPicker);
@@ -1157,7 +1183,7 @@ function wire() {
     if (!hits.length) { box.hidden = true; return; }
     box.innerHTML = hits.map(function (s) {
       return '<button type="button" data-pick="' + esc(s.id) + '">' +
-        '<span class="svc-logo" aria-hidden="true" style="width:22px;height:22px;font-size:.625rem;background:' + esc(s.color) + '">' +
+        '<span class="svc-logo' + logoInk(s.color) + '" aria-hidden="true" style="width:22px;height:22px;font-size:.625rem;background:' + esc(s.color) + '">' +
         esc(initials(s.name)) + '</span><span>' + esc(s.name) + marketTag(s) + '</span>' +
         '<span class="muted" style="margin-left:auto">' + esc(s.company) + '</span></button>';
     }).join('');

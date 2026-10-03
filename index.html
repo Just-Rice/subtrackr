@@ -24,7 +24,11 @@
       <span class="brand-name">Subtrackr</span>
     </div>
 
-    <div class="controls">
+    <button id="controlsToggle" class="btn controls-toggle" aria-expanded="false" aria-controls="controls">
+      <span id="controlsSummary"></span><span class="visually-hidden"> — change market, currency or theme</span> <span aria-hidden="true">▾</span>
+    </button>
+
+    <div class="controls" id="controls">
       <label class="ctl">
         <span class="ctl-label">Market</span>
         <select id="regionSelect" aria-label="Your market"></select>
