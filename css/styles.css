@@ -8,7 +8,7 @@
   --border-strong: #c6c3bb;
   --text-primary:  #0b0b0b;
   --text-secondary:#52514e;
-  --text-muted:    #85837c;
+  --text-muted:    #6e6c65;
 
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -20,10 +20,12 @@
   --series-8: #e34948;
 
   --good:     #0ca30c;
+  --good-ink: #066a06;
   --warning:  #fab219;
   --critical: #d03b3b;
 
-  --accent:      #2a78d6;
+  --accent:      #256fca;
+  --accent-fill: var(--accent);
   --accent-ink:  #ffffff;
   --accent-soft: #e6f0fc;
 
@@ -55,7 +57,10 @@
     --series-7: #9085e9;
     --series-8: #e66767;
 
+    --good-ink:    #3cc43c;
+    --critical:    #e66767;
     --accent:      #3987e5;
+    --accent-fill: #2f74cc;
     --accent-ink:  #ffffff;
     --accent-soft: #17304d;
     --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
@@ -82,7 +87,10 @@
   --series-7: #9085e9;
   --series-8: #e66767;
 
+  --good-ink:    #3cc43c;
+  --critical:    #e66767;
   --accent:      #3987e5;
+  --accent-fill: #2f74cc;
   --accent-ink:  #ffffff;
   --accent-soft: #17304d;
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
@@ -119,7 +127,7 @@ a  { color: var(--accent); }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-mark {
   width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
-  background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: .95rem;
+  background: var(--accent-fill); color: var(--accent-ink); font-weight: 700; font-size: .95rem;
 }
 .brand-name { font-weight: 650; letter-spacing: -.01em; font-size: 1.05rem; }
 .controls { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
@@ -158,7 +166,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
   padding: 7px 12px; cursor: pointer; white-space: nowrap;
 }
 .btn:hover { background: var(--surface-2); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-ink); }
 .btn-primary:hover { filter: brightness(1.08); }
 .btn-danger { color: var(--critical); border-color: var(--critical); background: transparent; }
 .btn-danger:hover { background: color-mix(in srgb, var(--critical) 12%, transparent); }
@@ -234,7 +242,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   color: var(--text-secondary); border-radius: 999px; padding: 4px 11px;
 }
 .chip:hover { color: var(--text-primary); }
-.chip.is-active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.chip.is-active { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--accent-ink); font-weight: 600; }
 
 .cat-block { margin-bottom: 28px; }
 .cat-head { display: flex; align-items: baseline; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-strong); margin-bottom: 14px; }
@@ -274,7 +282,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .benefits li { font-size: .8125rem; color: var(--text-secondary); padding-left: 16px; position: relative; line-height: 1.4; }
 .benefits li::before { content: "›"; position: absolute; left: 3px; color: var(--accent); font-weight: 700; }
 .badge { display: inline-block; font-size: .625rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; border-radius: 4px; padding: 1px 5px; }
-.badge-good { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.badge-good { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good-ink); }
 
 .compare-out .cmp-svc { margin-bottom: 24px; }
 .cmp-svc-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
@@ -325,4 +333,25 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
 .seg-btn { appearance: none; background: var(--surface-1); border: 0; border-right: 1px solid var(--border); font: inherit; font-size: .75rem; padding: 5px 11px; cursor: pointer; color: var(--text-secondary); }
 .seg-btn:last-child { border-right: 0; }
-.seg-btn.is-active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.seg-btn.is-active { background: var(--accent-fill); color: var(--accent-ink); font-weight: 600; }
+
+/* ── touch + small screens ────────────────────────────────────────────── */
+/* Finger-sized tap targets (~44px) on touch screens; mouse layouts unchanged. */
+@media (pointer: coarse) {
+  select, input[type="text"], input[type="search"], input[type="number"], input[type="date"],
+  .btn, .tab, .chip, .seg-btn, .suggest button { min-height: 44px; }
+  .btn, .seg-btn { min-width: 44px; }
+  input[type="color"] { min-height: 44px; }
+  .icon-btn { width: 44px; height: 44px; }
+  .link-btn { min-height: 44px; padding: 0 4px; }
+  .pill button { position: relative; }
+  .pill button::after { content: ""; position: absolute; inset: -12px -8px; }
+}
+/* 10–11px labels are hard to read on a phone; nudge them up a step there. */
+@media (max-width: 600px) {
+  /* Market + currency side by side so the sticky header doesn't eat a third of the screen. */
+  .controls { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .ctl select { width: 100%; }
+  .ctl-label, .tile-label, .group-head, .svc-company, .tier-count, .field-hint, th { font-size: .75rem; }
+  .est-tag, .badge { font-size: .6875rem; }
+}

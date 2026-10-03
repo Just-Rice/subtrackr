@@ -37,18 +37,18 @@
     </div>
   </div>
 
-  <nav class="wrap tabs" role="tablist">
-    <button class="tab is-active" data-tab="dashboard" role="tab">Dashboard</button>
-    <button class="tab" data-tab="browse" role="tab">Browse catalogue</button>
-    <button class="tab" data-tab="compare" role="tab">Compare</button>
-    <button class="tab" data-tab="settings" role="tab">Data</button>
+  <nav class="wrap tabs" role="tablist" aria-label="Sections">
+    <button class="tab is-active" id="tab-dashboard" data-tab="dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard">Dashboard</button>
+    <button class="tab" id="tab-browse" data-tab="browse" role="tab" aria-selected="false" aria-controls="panel-browse" tabindex="-1">Browse catalogue</button>
+    <button class="tab" id="tab-compare" data-tab="compare" role="tab" aria-selected="false" aria-controls="panel-compare" tabindex="-1">Compare</button>
+    <button class="tab" id="tab-settings" data-tab="settings" role="tab" aria-selected="false" aria-controls="panel-settings" tabindex="-1">Data</button>
   </nav>
 </header>
 
 <main class="wrap">
 
   <!-- ───────────────────────── DASHBOARD ───────────────────────── -->
-  <section id="panel-dashboard" class="panel is-active">
+  <section id="panel-dashboard" class="panel is-active" role="tabpanel" aria-labelledby="tab-dashboard">
 
     <div class="panel-head">
       <div>
@@ -82,10 +82,10 @@
     <section class="card">
       <div class="card-head">
         <h2>Tracked</h2>
-        <div class="seg" id="subFilter">
-          <button class="seg-btn is-active" data-filter="active">Active</button>
-          <button class="seg-btn" data-filter="paused">Paused</button>
-          <button class="seg-btn" data-filter="all">All</button>
+        <div class="seg" id="subFilter" role="group" aria-label="Filter tracked subscriptions">
+          <button class="seg-btn is-active" data-filter="active" aria-pressed="true">Active</button>
+          <button class="seg-btn" data-filter="paused" aria-pressed="false">Paused</button>
+          <button class="seg-btn" data-filter="all" aria-pressed="false">All</button>
         </div>
       </div>
       <div id="subList" class="sub-list"></div>
@@ -93,7 +93,7 @@
   </section>
 
   <!-- ───────────────────────── BROWSE ───────────────────────── -->
-  <section id="panel-browse" class="panel">
+  <section id="panel-browse" class="panel" role="tabpanel" aria-labelledby="tab-browse">
     <div class="panel-head">
       <div>
         <h1>Catalogue</h1>
@@ -103,14 +103,14 @@
 
     <div class="filters">
       <input type="search" id="search" placeholder="Search a service, company or category…" aria-label="Search catalogue">
-      <div class="chips" id="catChips"></div>
+      <div class="chips" id="catChips" role="group" aria-label="Filter by category"></div>
     </div>
 
     <div id="catalogList"></div>
   </section>
 
   <!-- ───────────────────────── COMPARE ───────────────────────── -->
-  <section id="panel-compare" class="panel">
+  <section id="panel-compare" class="panel" role="tabpanel" aria-labelledby="tab-compare">
     <div class="panel-head">
       <div>
         <h1>Compare services</h1>
@@ -131,7 +131,7 @@
   </section>
 
   <!-- ───────────────────────── DATA ───────────────────────── -->
-  <section id="panel-settings" class="panel">
+  <section id="panel-settings" class="panel" role="tabpanel" aria-labelledby="tab-settings">
     <div class="panel-head"><div><h1>Your data</h1>
       <p class="sub">Everything lives in this browser's local storage. Nothing is uploaded anywhere.</p></div></div>
 
@@ -176,7 +176,7 @@
   </div>
 </div>
 
-<div class="toast" id="toast" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="js/regions.js"></script>
 <script src="js/catalog.js"></script>

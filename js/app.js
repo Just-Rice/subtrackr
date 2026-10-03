@@ -88,8 +88,8 @@ function uid() { return 'x' + Date.now().toString(36) + Math.random().toString(3
 let toastTimer = null;
 function toast(msg) {
   const el = $('#toast');
-  el.textContent = msg;
   el.hidden = false;
+  el.textContent = msg;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function () { el.hidden = true; }, 2600);
 }
@@ -556,9 +556,10 @@ function matchesSearch(svc) {
 
 function renderChips() {
   $('#catChips').innerHTML =
-    '<button class="chip' + (catFilter === 'all' ? ' is-active' : '') + '" data-cat="all">All categories</button>' +
+    '<button class="chip' + (catFilter === 'all' ? ' is-active' : '') + '" data-cat="all" aria-pressed="' + (catFilter === 'all') + '">All categories</button>' +
     CATEGORIES.map(function (c) {
-      return '<button class="chip' + (catFilter === c.id ? ' is-active' : '') + '" data-cat="' + c.id + '">' +
+      return '<button class="chip' + (catFilter === c.id ? ' is-active' : '') + '" data-cat="' + c.id +
+             '" aria-pressed="' + (catFilter === c.id) + '">' +
              c.icon + '&nbsp; ' + esc(c.name) + '</button>';
     }).join('');
 }
@@ -641,7 +642,7 @@ function serviceCard(svc) {
 
   return '<article class="svc-card" data-svc="' + esc(svc.id) + '">' +
     '<div class="svc-top">' +
-      '<span class="svc-logo" style="background:' + esc(svc.color) + '">' + esc(initials(svc.name)) + '</span>' +
+      '<span class="svc-logo" aria-hidden="true" style="background:' + esc(svc.color) + '">' + esc(initials(svc.name)) + '</span>' +
       '<div><div class="svc-name">' + esc(svc.name) + '</div>' +
       '<div class="svc-company">' + esc(svc.company) + ' · <span class="tier-count">' + svc.tiers.length +
       ' tier' + (svc.tiers.length === 1 ? '' : 's') + '</span></div></div>' +
@@ -707,7 +708,7 @@ function renderCompare() {
     const s = SERVICE_BY_ID[id];
     if (!s) return '';
     return '<span class="pill"><span class="dot" style="background:' + esc(s.color) + '"></span>' +
-           esc(s.name) + '<button data-drop="' + esc(id) + '" aria-label="Remove">✕</button></span>';
+           esc(s.name) + '<button data-drop="' + esc(id) + '" aria-label="Remove ' + esc(s.name) + ' from comparison">✕</button></span>';
   }).join('');
 
   if (!state.compare.length) {
@@ -748,7 +749,7 @@ function renderCompare() {
   const detail = svcs.map(function (s) {
     const grp = GROUP_BY_ID[s.group];
     return '<section class="cmp-svc"><div class="cmp-svc-head">' +
-      '<span class="svc-logo" style="background:' + esc(s.color) + '">' + esc(initials(s.name)) + '</span>' +
+      '<span class="svc-logo" aria-hidden="true" style="background:' + esc(s.color) + '">' + esc(initials(s.name)) + '</span>' +
       '<div><h2>' + esc(s.name) + marketTag(s) + '</h2><div class="svc-company">' + esc(s.company) +
       (grp ? ' · ' + esc(grp.name) : '') + ' · <a href="https://' + esc(s.site) + '" target="_blank" rel="noopener">' + esc(s.site) + '</a></div></div>' +
       '<button class="btn btn-sm" style="margin-left:auto" data-cmp-add="' + esc(s.id) + '">Track a tier</button></div>' +
@@ -780,17 +781,23 @@ function compareSimilar(svcId) {
 
 /* ─────────────────────────────  modal  ───────────────────────────── */
 
+let modalReturnFocus = null;
+
 function openModal(title, bodyHtml, wide) {
+  if ($('#modal').hidden) modalReturnFocus = document.activeElement;
   $('#modalTitle').textContent = title;
   $('#modalBody').innerHTML = bodyHtml;
   $('#modal').firstElementChild.classList.toggle('wide', !!wide);
   $('#modal').hidden = false;
   document.body.style.overflow = 'hidden';
+  $('#modalClose').focus();
 }
 function closeModal() {
   $('#modal').hidden = true;
   $('#modalBody').innerHTML = '';
   document.body.style.overflow = '';
+  if (modalReturnFocus && document.contains(modalReturnFocus)) modalReturnFocus.focus();
+  modalReturnFocus = null;
 }
 
 function openTiers(svcId) {
@@ -838,8 +845,8 @@ function openSubForm(sub, presetSvcId, presetTierName) {
   }
 
   const tierPickerHtml = svc ? (
-    '<div class="field"><label>Tier</label>' +
-    '<div class="tier-picker" id="tierPicker">' +
+    '<div class="field"><label id="tierPickerLabel">Tier</label>' +
+    '<div class="tier-picker" id="tierPicker" role="group" aria-labelledby="tierPickerLabel">' +
     svc.tiers.map(function (t) {
       const p = tierPrice(t, state.region);
       const unit = t.billedYearly ? '/mo, billed yearly'
@@ -850,7 +857,7 @@ function openSubForm(sub, presetSvcId, presetTierName) {
         : p.usd === 0 ? 'Free'
         : esc(fmtMoney(p.local.amount, p.local.cur)) + unit + (p.exact ? '' : ' <span class="est-tag">est.</span>');
       return '<button type="button" class="tier-pick' + (t.name === draft.tierName ? ' is-sel' : '') +
-        '" data-tier="' + esc(t.name) + '">' +
+        '" data-tier="' + esc(t.name) + '" aria-pressed="' + (t.name === draft.tierName) + '">' +
         '<div class="tier-pick-top"><strong>' + esc(t.name) + '</strong><span>' + label + '</span></div>' +
         '<div class="field-hint">' + esc(t.benefits.slice(0, 2).join(' · ')) + '</div></button>';
     }).join('') + '</div></div>'
@@ -909,8 +916,10 @@ function openSubForm(sub, presetSvcId, presetTierName) {
       btn.addEventListener('click', function () {
         const tier = svc.tiers.filter(function (t) { return t.name === btn.dataset.tier; })[0];
         if (!tier) return;
-        $$('#tierPicker .tier-pick').forEach(function (b) { b.classList.remove('is-sel'); });
-        btn.classList.add('is-sel');
+        $$('#tierPicker .tier-pick').forEach(function (b) {
+          b.classList.toggle('is-sel', b === btn);
+          b.setAttribute('aria-pressed', String(b === btn));
+        });
         draft.tierName = tier.name;
         draft.benefits = tier.benefits.slice();
         const p = tierPrice(tier, state.region);
@@ -968,7 +977,12 @@ function openCatalogPicker() {
 /* ─────────────────────────────  tabs  ───────────────────────────── */
 
 function switchTab(name) {
-  $$('.tab').forEach(function (t) { t.classList.toggle('is-active', t.dataset.tab === name); });
+  $$('.tab').forEach(function (t) {
+    const on = t.dataset.tab === name;
+    t.classList.toggle('is-active', on);
+    t.setAttribute('aria-selected', String(on));
+    t.tabIndex = on ? 0 : -1;
+  });
   $$('.panel').forEach(function (p) { p.classList.toggle('is-active', p.id === 'panel-' + name); });
 }
 
@@ -1001,6 +1015,18 @@ function renderStorageInfo() {
 function wire() {
   $$('.tab').forEach(function (t) {
     t.addEventListener('click', function () { switchTab(t.dataset.tab); });
+  });
+  $('.tabs').addEventListener('keydown', function (e) {
+    const tabs = $$('.tab');
+    const i = tabs.indexOf(document.activeElement);
+    if (i === -1) return;
+    const next = e.key === 'ArrowRight' ? (i + 1) % tabs.length
+      : e.key === 'ArrowLeft' ? (i - 1 + tabs.length) % tabs.length
+      : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : -1;
+    if (next === -1) return;
+    e.preventDefault();
+    switchTab(tabs[next].dataset.tab);
+    tabs[next].focus();
   });
 
   $('#regionSelect').addEventListener('change', function (e) {
@@ -1064,7 +1090,10 @@ function wire() {
     const b = e.target.closest('.seg-btn');
     if (!b) return;
     subFilter = b.dataset.filter;
-    $$('#subFilter .seg-btn').forEach(function (x) { x.classList.toggle('is-active', x === b); });
+    $$('#subFilter .seg-btn').forEach(function (x) {
+      x.classList.toggle('is-active', x === b);
+      x.setAttribute('aria-pressed', String(x === b));
+    });
     renderSubList();
   });
 
@@ -1086,7 +1115,17 @@ function wire() {
   });
   $('#modalClose').addEventListener('click', closeModal);
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
+    if ($('#modal').hidden) return;
+    if (e.key === 'Escape') closeModal();
+    else if (e.key === 'Tab') {
+      /* keep keyboard focus inside the open dialog */
+      const f = $$('#modal button, #modal a[href], #modal input, #modal select, #modal textarea')
+        .filter(function (el) { return !el.disabled && el.offsetParent !== null; });
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && (document.activeElement === first || !$('#modal').contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (document.activeElement === last || !$('#modal').contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+    }
   });
 
   /* compare panel */
@@ -1118,7 +1157,7 @@ function wire() {
     if (!hits.length) { box.hidden = true; return; }
     box.innerHTML = hits.map(function (s) {
       return '<button type="button" data-pick="' + esc(s.id) + '">' +
-        '<span class="svc-logo" style="width:22px;height:22px;font-size:.625rem;background:' + esc(s.color) + '">' +
+        '<span class="svc-logo" aria-hidden="true" style="width:22px;height:22px;font-size:.625rem;background:' + esc(s.color) + '">' +
         esc(initials(s.name)) + '</span><span>' + esc(s.name) + marketTag(s) + '</span>' +
         '<span class="muted" style="margin-left:auto">' + esc(s.company) + '</span></button>';
     }).join('');
