@@ -26,7 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # No build step — the repository root is the site.
+      # No build step — the repository root is the site. The smoke test
+      # isn't part of it, so leave it out of the published copy.
+      - run: rm -rf tests
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

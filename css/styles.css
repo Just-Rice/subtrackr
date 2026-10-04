@@ -365,6 +365,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -20px; padding: 2px 20px; scrollbar-width: none; }
   .chips::-webkit-scrollbar { display: none; }
   .chip { flex: none; white-space: nowrap; }
+  /* Chart category names wrap instead of hiding behind a hover-only tooltip. */
+  .bar-name { white-space: normal; overflow: visible; line-height: 1.3; }
   .ctl-label, .tile-label, .group-head, .svc-company, .tier-count, .field-hint, th { font-size: .75rem; }
   .est-tag, .badge { font-size: .6875rem; }
 }
