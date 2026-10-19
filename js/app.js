@@ -30,10 +30,15 @@ function sanitise(st) {
   if (!CURRENCIES[st.currency]) st.currency = REGION_BY_CODE[st.region].cur;
   if (['auto', 'light', 'dark'].indexOf(st.theme) === -1) st.theme = 'auto';
   st.subs = st.subs.filter(function (s) { return s && typeof s === 'object'; }).map(function (s) {
+    const amount = Number(s.amount);
     return Object.assign({}, s, {
-      id: s.id || uid(),
+      id: s.id ? String(s.id) : uid(),
       name: String(s.name == null ? 'Untitled' : s.name),
-      amount: isFinite(Number(s.amount)) ? Number(s.amount) : 0,
+      /* colour lands inside style="…"; anything but a plain hex could smuggle CSS in */
+      color: safeColor(s.color),
+      amount: isFinite(amount) && amount > 0 ? amount : 0,
+      /* an export edited by hand can carry "false" — a truthy string */
+      active: s.active !== false && s.active !== 'false',
       cur: CURRENCIES[s.cur] ? s.cur : DEFAULT_STATE.currency,
       cycle: CYCLE_BY_ID[s.cycle] ? s.cycle : 'monthly',
       nextDate: parseYmd(s.nextDate) ? s.nextDate : '',
@@ -82,6 +87,8 @@ function esc(str) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+function safeColor(c) { return /^#[0-9a-f]{6}$/i.test(String(c)) ? String(c) : '#888888'; }
 
 function uid() { return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -938,8 +945,8 @@ function openSubForm(sub, presetSvcId, presetTierName) {
       name: $('#fName').value.trim() || 'Untitled',
       company: $('#fCompany').value.trim(),
       group: $('#fGroup').value,
-      color: $('#fColor').value,
-      amount: parseFloat($('#fAmount').value) || 0,
+      color: safeColor($('#fColor').value),
+      amount: Math.max(0, parseFloat($('#fAmount').value) || 0),
       cur: $('#fCur').value,
       cycle: $('#fCycle').value,
       nextDate: $('#fNext').value,
