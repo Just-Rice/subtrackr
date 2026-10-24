@@ -207,6 +207,13 @@ function availableHere(svc, regionCode) {
   return true;
 }
 
+/* Hulu has no service-level market lock, but every one of its tiers is US-only —
+   so "can you buy it here" needs the tier check as well. */
+function soldHere(svc, regionCode) {
+  const code = regionCode || currentRegion().code;
+  return availableHere(svc, code) && svc.tiers.some(function (t) { return tierPrice(t, code); });
+}
+
 function marketTag(svc) {
   if (!svc.markets) return '';
   return ' <span class="est-tag">' + svc.markets.map(function (m) {
@@ -323,9 +330,13 @@ function refreshFx(manual) {
     return Promise.resolve(false);
   }
   return fetch('https://open.er-api.com/v6/latest/USD')
-    .then(function (r) { return r.json(); })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
     .then(function (data) {
-      if (!data || !data.rates) throw new Error('bad payload');
+      /* the service answers errors with a 200 and result: "error" */
+      if (!data || data.result === 'error' || !data.rates) throw new Error('bad payload');
       const keep = {};
       Object.keys(CURRENCIES).forEach(function (c) {
         if (typeof data.rates[c] === 'number') keep[c] = data.rates[c];
@@ -506,6 +517,7 @@ function renderRenewals() {
 }
 
 let subFilter = 'active';
+let pendingImport = null;
 
 function renderSubList() {
   const host = $('#subList');
@@ -539,7 +551,7 @@ function renderSubList() {
       (s.notes ? '<div class="sub-meta">' + esc(s.notes) + '</div>' : '') +
       '<div class="sub-actions">' +
         '<button class="btn btn-sm" data-act="edit">Edit</button>' +
-        (s.serviceId ? '<button class="btn btn-sm" data-act="similar">Compare similar</button>' : '') +
+        (SERVICE_BY_ID[s.serviceId] ? '<button class="btn btn-sm" data-act="similar">Compare similar</button>' : '') +
         '<button class="btn btn-sm" data-act="toggle">' + (s.active === false ? 'Resume' : 'Pause') + '</button>' +
         '<button class="btn btn-sm btn-danger" data-act="del">Remove</button>' +
       '</div></article>';
@@ -782,22 +794,49 @@ function compareSimilar(svcId) {
   switchTab('compare');
   renderCompare();
   window.scrollTo({ top: 0, behavior: 'smooth' });
-  toast('Comparing ' + peers.length + ' services in ' + GROUP_BY_ID[svc.group].name + '.');
+  const grp = GROUP_BY_ID[svc.group];
+  toast('Comparing ' + peers.length + ' services' + (grp ? ' in ' + grp.name : '') + '.');
 }
 
 /* ─────────────────────────────  modal  ───────────────────────────── */
 
+let modalReturnFocus = null;
+let modalDirty = false;
+
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
+
 function openModal(title, bodyHtml, wide) {
+  /* a modal opened from inside another keeps the original trigger to return to */
+  if ($('#modal').hidden) modalReturnFocus = document.activeElement;
+  modalDirty = false;
   $('#modalTitle').textContent = title;
   $('#modalBody').innerHTML = bodyHtml;
   $('#modal').firstElementChild.classList.toggle('wide', !!wide);
   $('#modal').hidden = false;
   document.body.style.overflow = 'hidden';
+  const first = $('#modalBody').querySelector(FOCUSABLE);
+  (first || $('#modalClose')).focus();
 }
-function closeModal() {
+
+/* force skips the "discard changes?" prompt — for saves, not for Escape */
+function closeModal(force) {
+  if (force !== true && modalDirty && !confirm('Discard your changes?')) return;
+  modalDirty = false;
+  pendingImport = null;
   $('#modal').hidden = true;
   $('#modalBody').innerHTML = '';
   document.body.style.overflow = '';
+  if (modalReturnFocus && document.contains(modalReturnFocus)) modalReturnFocus.focus();
+  modalReturnFocus = null;
+}
+
+function trapFocus(e) {
+  if (e.key !== 'Tab' || $('#modal').hidden) return;
+  const items = $$(FOCUSABLE, $('#modal').firstElementChild);
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 }
 
 function openTiers(svcId) {
@@ -910,6 +949,7 @@ function openSubForm(sub, presetSvcId, presetTierName) {
   openModal(editing ? 'Edit ' + draft.name : svc ? 'Track ' + svc.name : 'Custom subscription', body);
 
   const form = $('#subForm');
+  form.addEventListener('input', function () { modalDirty = true; });
 
   if (svc) {
     $$('#tierPicker .tier-pick').forEach(function (btn) {
@@ -918,6 +958,7 @@ function openSubForm(sub, presetSvcId, presetTierName) {
         if (!tier) return;
         $$('#tierPicker .tier-pick').forEach(function (b) { b.classList.remove('is-sel'); });
         btn.classList.add('is-sel');
+        modalDirty = true;
         draft.tierName = tier.name;
         draft.benefits = tier.benefits.slice();
         const p = tierPrice(tier, state.region);
@@ -931,6 +972,11 @@ function openSubForm(sub, presetSvcId, presetTierName) {
             $('#fAmount').value = p.local.amount;
           }
           $('#fCur').value = p.local.cur;
+        } else {
+          /* keeping the previous tier's price would quietly save the wrong number */
+          $('#fAmount').value = '';
+          $('#fAmount').focus();
+          toast(tier.name + ' has no list price in ' + currentRegion().name + ' — enter what you pay.');
         }
       });
     });
@@ -957,7 +1003,7 @@ function openSubForm(sub, presetSvcId, presetTierName) {
     const i = state.subs.findIndex(function (s) { return s.id === rec.id; });
     if (i >= 0) state.subs[i] = rec; else state.subs.push(rec);
     saveState();
-    closeModal();
+    closeModal(true);
     switchTab('dashboard');
     renderAll();
     toast(i >= 0 ? 'Saved.' : rec.name + ' added.');
@@ -1091,9 +1137,10 @@ function wire() {
     const addTier = e.target.closest('[data-add-tier]');
     if (addTier) { openSubForm(null, addTier.dataset.svc, addTier.dataset.addTier); }
   });
-  $('#modalClose').addEventListener('click', closeModal);
+  $('#modalClose').addEventListener('click', function () { closeModal(); });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !$('#modal').hidden) closeModal();
+    trapFocus(e);
   });
 
   /* compare panel */
@@ -1118,15 +1165,19 @@ function wire() {
     const q = cs.value.trim().toLowerCase();
     const box = $('#compareSuggest');
     if (!q) { box.hidden = true; return; }
+    /* services sold in this market first; the rest stay pickable but say so */
     const hits = CATALOG.filter(function (s) {
       return state.compare.indexOf(s.id) === -1 &&
         (s.name.toLowerCase().indexOf(q) !== -1 || s.company.toLowerCase().indexOf(q) !== -1);
-    }).slice(0, 12);
+    }).sort(function (a, b) { return (soldHere(b) ? 1 : 0) - (soldHere(a) ? 1 : 0); })
+      .slice(0, 12);
     if (!hits.length) { box.hidden = true; return; }
     box.innerHTML = hits.map(function (s) {
+      const here = soldHere(s);
       return '<button type="button" data-pick="' + esc(s.id) + '">' +
         '<span class="svc-logo" style="width:22px;height:22px;font-size:.625rem;background:' + esc(s.color) + '">' +
-        esc(initials(s.name)) + '</span><span>' + esc(s.name) + marketTag(s) + '</span>' +
+        esc(initials(s.name)) + '</span><span>' + esc(s.name) + marketTag(s) +
+        (here ? '' : ' <span class="est-tag">not in ' + esc(currentRegion().name) + '</span>') + '</span>' +
         '<span class="muted" style="margin-left:auto">' + esc(s.company) + '</span></button>';
     }).join('');
     box.hidden = false;
@@ -1162,29 +1213,72 @@ function wire() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = function () {
+      e.target.value = '';
+      let incoming;
       try {
         const data = JSON.parse(reader.result);
-        const incoming = data.state || data;
+        incoming = data && (data.state || data);
         if (!incoming || !Array.isArray(incoming.subs)) throw new Error('no subscriptions in file');
-        Object.assign(state, sanitise({
-          region: incoming.region || state.region,
-          currency: incoming.currency || state.currency,
-          theme: incoming.theme || state.theme,
-          subs: incoming.subs,
-          compare: Array.isArray(incoming.compare) ? incoming.compare : []
-        }));
-        saveState(); buildSelects(); applyTheme(); renderAll();
-        toast('Imported ' + state.subs.length + ' subscriptions.');
       } catch (err) {
         toast('That file could not be read as a Subtrackr export.');
+        return;
       }
+      confirmImport(incoming);
+    };
+    reader.onerror = function () {
       e.target.value = '';
+      toast('That file could not be opened.');
     };
     reader.readAsText(file);
   });
 
+  /* An import used to overwrite everything without a word. Ask first, and let
+     the file be merged in — matching ids are updated, new ones appended. */
+  function confirmImport(incoming) {
+    const n = incoming.subs.length;
+    openModal('Import ' + n + ' subscription' + (n === 1 ? '' : 's') + '?',
+      '<p class="sub" style="margin-bottom:14px">You have ' + state.subs.length + ' tracked now. ' +
+      '<strong>Merge</strong> adds the file\'s entries and updates any with the same id. ' +
+      '<strong>Replace</strong> discards what is here and takes the file\'s settings too.</p>' +
+      '<div class="modal-foot">' +
+        '<button class="btn" data-close>Cancel</button>' +
+        '<button class="btn" data-import="merge">Merge</button>' +
+        '<button class="btn btn-danger" data-import="replace">Replace</button>' +
+      '</div>');
+    pendingImport = incoming;
+  }
+  $('#modalBody').addEventListener('click', function (ev) {
+    const b = ev.target.closest('[data-import]');
+    if (!b || !pendingImport) return;
+    const incoming = pendingImport;
+    const clean = sanitise({
+      region: incoming.region || state.region,
+      currency: incoming.currency || state.currency,
+      theme: incoming.theme || state.theme,
+      subs: incoming.subs,
+      compare: Array.isArray(incoming.compare) ? incoming.compare : []
+    });
+    let added = clean.subs.length;
+    if (b.dataset.import === 'replace') {
+      Object.assign(state, clean);
+    } else {
+      added = 0;
+      clean.subs.forEach(function (s) {
+        const i = state.subs.findIndex(function (x) { return x.id === s.id; });
+        if (i >= 0) state.subs[i] = s; else { state.subs.push(s); added++; }
+      });
+    }
+    closeModal(true);
+    saveState(); buildSelects(); applyTheme(); renderAll();
+    toast(b.dataset.import === 'replace'
+      ? 'Replaced with ' + state.subs.length + ' subscriptions.'
+      : 'Merged — ' + added + ' new, ' + (clean.subs.length - added) + ' updated.');
+  });
+
   $('#wipeBtn').addEventListener('click', function () {
     if (!confirm('Erase every tracked subscription and setting from this browser? This cannot be undone.')) return;
+    /* a save still queued from a moment ago would write the old data straight back */
+    clearTimeout(saveTimer);
     try { localStorage.removeItem(KEY); } catch (err) { /* ignore */ }
     Object.assign(state, freshState());
     buildSelects(); applyTheme(); renderAll();
@@ -1203,5 +1297,9 @@ applyTheme();
 wire();
 renderAll();
 if (fxAgeHours() > 12) refreshFx(false);
+/* a tab left open for days would otherwise keep the rates it booted with */
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && fxAgeHours() > 12) refreshFx(false);
+});
 
 })();

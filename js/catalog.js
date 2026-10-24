@@ -107,7 +107,7 @@ s('primevideo', 'Amazon Prime Video', 'Amazon', 'video.movies', '#00A8E1', 'prim
     ['Removes ads from Prime Video', 'Stacks on top of Prime or standalone Video', 'Does not cover live sport ad breaks'], { addon: true })
 ]),
 
-s('max', 'HBO Max', 'Warner Bros. Discovery', 'video.movies', '#7B2BF9', 'max.com',
+s('max', 'HBO Max', 'Warner Bros. Discovery', 'video.movies', '#7B2BF9', 'hbomax.com',
   'HBO originals, Warner Bros. film, DC and the Discovery reality catalogue.', [
   t('Basic with Ads', { US: 10.99, GB: 6.99, DE: 6.99, BR: 29.90 },
     ['Ad-supported streaming', '1080p', '2 concurrent streams', 'No offline downloads']),
