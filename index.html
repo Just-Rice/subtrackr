@@ -2,184 +2,205 @@
 <html lang="en" data-theme="auto">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Subtrackr — subscription tracker</title>
-<meta name="description" content="Track subscriptions across any currency and market, and compare tiers between similar services.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Subtrackr — subscriptions, cards &amp; spending</title>
+<meta name="description" content="Track subscriptions, credit card value and everyday spending in any currency and market. Everything stays in your browser.">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171a1d" media="(prefers-color-scheme: dark)">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Subtrackr">
-<meta property="og:description" content="A subscription tracker that knows the price is different where you live. 95 services, 341 tiers, 50 markets, 45 currencies — and a side-by-side tier comparison for every service.">
+<meta property="og:description" content="Subscriptions priced for your market, what your credit cards actually pay you back, and where the rest of the money goes. No account, nothing uploaded.">
 <meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="css/styles.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'><rect width='28' height='28' rx='7' fill='%230f7b4f'/><path d='M8 17.5c1.2 1.4 3 2 5 2 2.6 0 4.5-1.1 4.5-3s-1.7-2.5-4.5-3c-2.6-.5-4-1.2-4-2.9C9 8.8 10.8 8 13 8c1.7 0 3.2.5 4.3 1.6' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>">
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 
-<header class="topbar">
-  <div class="wrap topbar-inner">
+<div class="shell">
+  <aside class="side" id="side" aria-label="Navigation and settings">
     <div class="brand">
-      <span class="brand-mark">S</span>
-      <span class="brand-name">Subtrackr</span>
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="currentColor"></rect><path d="M8 17.5c1.2 1.4 3 2 5 2 2.6 0 4.5-1.1 4.5-3s-1.7-2.5-4.5-3c-2.6-.5-4-1.2-4-2.9C9 8.8 10.8 8 13 8c1.7 0 3.2.5 4.3 1.6" fill="none" stroke="var(--surface)" stroke-width="2" stroke-linecap="round"></path></svg>
+      Subtrackr
     </div>
 
-    <div class="controls">
-      <label class="ctl">
-        <span class="ctl-label">Market</span>
-        <select id="regionSelect" aria-label="Your market"></select>
-      </label>
-      <label class="ctl">
-        <span class="ctl-label">Show prices in</span>
-        <select id="currencySelect" aria-label="Display currency"></select>
-      </label>
-      <button id="themeBtn" class="icon-btn" title="Switch theme" aria-label="Switch theme">◐</button>
+    <nav class="side-nav" aria-label="Main">
+      <a class="nav-link" href="#/overview" data-route="overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Overview</a>
+      <a class="nav-link" href="#/subs" data-route="subs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>
+        Subscriptions <span class="nav-count" id="countSubs"></span></a>
+      <a class="nav-link" href="#/cards" data-route="cards">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg>
+        Cards <span class="nav-count" id="countCards"></span></a>
+      <a class="nav-link" href="#/spending" data-route="spending">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6"/><path d="M9 12h6"/></svg>
+        Spending</a>
+      <a class="nav-link" href="#/calendar" data-route="calendar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+        Calendar</a>
+      <a class="nav-link" href="#/data" data-route="data">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z"/><path d="M4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+        Your data</a>
+    </nav>
+
+    <div class="side-foot">
+      <label>Market <select id="regionSelect"></select></label>
+      <label>Show prices in <select id="currencySelect"></select></label>
+      <button class="btn btn-sm" id="themeBtn" type="button">Theme: auto</button>
+      <span class="muted">Everything stays in this browser.</span>
     </div>
-  </div>
+  </aside>
+  <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
 
-  <nav class="wrap tabs" role="tablist">
-    <button class="tab is-active" data-tab="dashboard" role="tab">Dashboard</button>
-    <button class="tab" data-tab="browse" role="tab">Browse catalogue</button>
-    <button class="tab" data-tab="compare" role="tab">Compare</button>
-    <button class="tab" data-tab="settings" role="tab">Data</button>
-  </nav>
-</header>
+  <main class="content" id="main" tabindex="-1">
 
-<main class="wrap">
-
-  <!-- ───────────────────────── DASHBOARD ───────────────────────── -->
-  <section id="panel-dashboard" class="panel is-active">
-
-    <div class="panel-head">
-      <div>
-        <h1>Your subscriptions</h1>
-        <p class="sub" id="dashSub">Nothing tracked yet.</p>
+    <!-- ───────────── OVERVIEW: a glance; every block opens its tab ───────────── -->
+    <section class="view narrow" id="view-overview" aria-labelledby="h-overview" hidden>
+      <div class="view-head">
+        <div><p class="eyebrow" id="todayLabel"></p><h1 id="h-overview">Overview</h1></div>
+        <div class="view-actions"><button class="btn btn-primary" type="button" data-add>+ Add</button></div>
       </div>
-      <div class="panel-actions">
-        <button class="btn btn-primary" id="addFromCatalogBtn">+ Add subscription</button>
-        <button class="btn" id="addCustomBtn">Custom…</button>
-      </div>
-    </div>
+      <div class="glance" id="glance"></div>
+    </section>
 
-    <div class="tiles" id="tiles"></div>
-
-    <div class="dash-grid">
-      <section class="card chart-card">
-        <div class="card-head">
-          <h2>Monthly spend by category</h2>
-          <button class="link-btn" id="tableToggle" aria-expanded="false">Show as table</button>
-        </div>
-        <div id="chart" class="viz-root"></div>
-        <div id="chartTable" class="table-wrap" hidden></div>
-      </section>
-
-      <section class="card">
-        <div class="card-head"><h2>Coming up</h2></div>
-        <ul class="renewals" id="renewals"></ul>
-      </section>
-    </div>
-
-    <section class="card">
-      <div class="card-head">
-        <h2>Tracked</h2>
-        <div class="seg" id="subFilter">
-          <button class="seg-btn is-active" data-filter="active">Active</button>
-          <button class="seg-btn" data-filter="paused">Paused</button>
-          <button class="seg-btn" data-filter="all">All</button>
+    <!-- ───────────── SUBSCRIPTIONS ───────────── -->
+    <section class="view" id="view-subs" aria-labelledby="h-subs" hidden>
+      <div class="view-head">
+        <div><p class="eyebrow" id="subsEyebrow"></p><h1 id="h-subs">Subscriptions</h1></div>
+        <div class="view-actions">
+          <a class="btn" href="#/subs/browse">Browse catalogue</a>
+          <button class="btn btn-primary" type="button" id="addCustomBtn">+ Custom</button>
         </div>
       </div>
-      <div id="subList" class="sub-list"></div>
-    </section>
-  </section>
+      <nav class="subtabs" aria-label="Subscriptions">
+        <a href="#/subs" data-sub="tracked">Tracked</a>
+        <a href="#/subs/browse" data-sub="browse">Browse catalogue</a>
+        <a href="#/subs/compare" data-sub="compare">Compare</a>
+      </nav>
 
-  <!-- ───────────────────────── BROWSE ───────────────────────── -->
-  <section id="panel-browse" class="panel">
-    <div class="panel-head">
-      <div>
-        <h1>Catalogue</h1>
-        <p class="sub"><span id="catalogCount"></span> services, grouped by category and sorted by company. Prices shown for <strong id="browseRegionName"></strong>.</p>
+      <div data-pane="tracked">
+        <div id="subStats" class="stats"></div>
+        <div id="subAdvice"></div>
+        <section class="card">
+          <div class="card-head">
+            <h2>Tracked</h2>
+            <div class="seg" id="subFilter" role="group" aria-label="Show">
+              <button type="button" data-filter="active" aria-pressed="true">Active</button>
+              <button type="button" data-filter="paused" aria-pressed="false">Paused</button>
+              <button type="button" data-filter="all" aria-pressed="false">All</button>
+            </div>
+          </div>
+          <div id="subList" class="sub-list"></div>
+        </section>
+        <section class="card">
+          <div class="card-head">
+            <h2>Monthly cost by category</h2>
+            <button class="link-btn" id="tableToggle" type="button" aria-expanded="false">Show as table</button>
+          </div>
+          <div id="chart" class="bar-list"></div>
+          <div id="chartTable" class="table-wrap" hidden></div>
+        </section>
       </div>
-    </div>
 
-    <div class="filters">
-      <input type="search" id="search" placeholder="Search a service, company or category…" aria-label="Search catalogue">
-      <div class="chips" id="catChips"></div>
-    </div>
-
-    <div id="catalogList"></div>
-  </section>
-
-  <!-- ───────────────────────── COMPARE ───────────────────────── -->
-  <section id="panel-compare" class="panel">
-    <div class="panel-head">
-      <div>
-        <h1>Compare services</h1>
-        <p class="sub">Pick any services — every tier and its listed benefits sit side by side, priced for your market.</p>
+      <div data-pane="browse" hidden>
+        <p class="sub" style="margin-bottom:12px"><span id="catalogCount"></span> services, grouped by category and sorted by company. Prices for <strong id="browseRegionName"></strong>.</p>
+        <div class="filters">
+          <input type="search" id="search" placeholder="Search a service, company or category…" aria-label="Search catalogue">
+          <div class="chips" id="catChips"></div>
+        </div>
+        <div id="catalogList"></div>
       </div>
-      <div class="panel-actions">
-        <button class="btn" id="clearCompare">Clear</button>
-      </div>
-    </div>
 
-    <div class="filters">
-      <input type="search" id="compareSearch" placeholder="Add a service to the comparison…" aria-label="Search services to compare">
-      <div id="compareSuggest" class="suggest" hidden></div>
-    </div>
-
-    <div class="pill-row" id="comparePills"></div>
-    <div id="compareOut" class="compare-out"></div>
-  </section>
-
-  <!-- ───────────────────────── DATA ───────────────────────── -->
-  <section id="panel-settings" class="panel">
-    <div class="panel-head"><div><h1>Your data</h1>
-      <p class="sub">Everything lives in this browser's local storage. Nothing is uploaded anywhere.</p></div></div>
-
-    <section class="card">
-      <div class="card-head"><h2>Storage</h2></div>
-      <p class="muted" id="storageInfo"></p>
-      <div class="row-btns">
-        <button class="btn" id="exportBtn">Export JSON</button>
-        <button class="btn" id="importBtn">Import JSON</button>
-        <input type="file" id="importFile" accept="application/json" hidden>
-        <button class="btn btn-danger" id="wipeBtn">Erase everything</button>
+      <div data-pane="compare" hidden>
+        <div class="view-head" style="margin-bottom:12px">
+          <p class="sub">Pick any services. Every tier and its listed benefits sit side by side, priced for your market.</p>
+          <button class="btn btn-sm" id="clearCompare" type="button">Clear</button>
+        </div>
+        <div class="filters">
+          <input type="search" id="compareSearch" placeholder="Add a service to the comparison…" aria-label="Search services to compare">
+          <div id="compareSuggest" class="suggest" hidden></div>
+        </div>
+        <div class="pill-row" id="comparePills"></div>
+        <div id="compareOut"></div>
       </div>
     </section>
 
-    <section class="card">
-      <div class="card-head"><h2>Exchange rates</h2></div>
-      <p class="muted" id="fxInfo"></p>
-      <div class="row-btns"><button class="btn" id="fxRefresh">Refresh rates</button></div>
+    <!-- ───────────── CARDS ───────────── -->
+    <section class="view" id="view-cards" aria-labelledby="h-cards" hidden>
+      <div id="cardsRoot"></div>
     </section>
 
-    <section class="card">
-      <div class="card-head"><h2>How pricing works</h2></div>
-      <div class="prose">
-        <p>Every catalogue price is the publisher's list price in the local currency of a market. Change <strong>Market</strong> and the same tier is re-quoted — Spotify Individual is ₹119 in India and $11.99 in the United States, and that is a real difference in what the publisher charges, not a currency conversion.</p>
-        <p>Where a publisher's exact local price isn't in the catalogue, the price is estimated from the US price and that market's typical price level for digital subscriptions, then converted. Estimates are marked <span class="est-tag">est.</span></p>
-        <p><strong>Show prices in</strong> only changes the currency the numbers are displayed in. It does not change which market's price is being quoted.</p>
-        <p class="muted">Catalogue prices are a best-effort snapshot and move constantly. Every tracked subscription keeps its own editable amount — set it to what you actually pay.</p>
+    <!-- ───────────── SPENDING ───────────── -->
+    <section class="view" id="view-spending" aria-labelledby="h-spending" hidden>
+      <div id="spendingRoot"></div>
+    </section>
+
+    <!-- ───────────── CALENDAR ───────────── -->
+    <section class="view" id="view-calendar" aria-labelledby="h-calendar" hidden>
+      <div class="view-head">
+        <div><p class="eyebrow" id="calRange"></p><h1 id="h-calendar">Calendar</h1></div>
+        <div class="view-actions">
+          <button class="icon-btn" type="button" id="calPrev" aria-label="Previous four weeks">‹</button>
+          <button class="btn" type="button" id="calToday">Today</button>
+          <button class="icon-btn" type="button" id="calNext" aria-label="Next four weeks">›</button>
+          <button class="btn" type="button" id="icsBtn">Export to calendar (.ics)</button>
+        </div>
       </div>
+      <div class="legend" id="calLegend"></div>
+      <section class="card cal" aria-label="Four-week calendar" id="calGrid"></section>
+      <section class="card day-detail" id="dayDetail" aria-live="polite"></section>
     </section>
-  </section>
 
-</main>
+    <!-- ───────────── DATA ───────────── -->
+    <section class="view narrow" id="view-data" aria-labelledby="h-data" hidden>
+      <div class="view-head"><div><h1 id="h-data">Your data</h1>
+        <p class="sub">Everything lives in this browser's local storage. Nothing is uploaded anywhere.</p></div></div>
+      <div id="dataRoot"></div>
+    </section>
 
-<!-- ───────────────────────── MODALS ───────────────────────── -->
+  </main>
+</div>
+
+<nav class="bottom-nav" aria-label="Main (phone)">
+  <a href="#/overview" data-route="overview">Overview</a>
+  <a href="#/subs" data-route="subs">Subs</a>
+  <a href="#/cards" data-route="cards">Cards</a>
+  <a href="#/calendar" data-route="calendar">Calendar</a>
+  <button type="button" id="moreBtn" aria-controls="side" aria-expanded="false">More</button>
+</nav>
+
 <div class="modal-backdrop" id="modal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-head">
       <h2 id="modalTitle"></h2>
-      <button class="icon-btn" id="modalClose" aria-label="Close">✕</button>
+      <button class="icon-btn" id="modalClose" type="button" aria-label="Close">✕</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
   </div>
 </div>
 
-<div class="toast" id="toast" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
 
-<script src="js/regions.js"></script>
-<script src="js/catalog.js"></script>
+<script src="js/data/regions.js"></script>
+<script src="js/data/catalog.js"></script>
+<script src="js/data/spending.js"></script>
+<script src="js/core/util.js"></script>
+<script src="js/core/money.js"></script>
+<script src="js/core/dates.js"></script>
+<script src="js/core/pricing.js"></script>
+<script src="js/core/store.js"></script>
+<script src="js/core/ledger.js"></script>
+<script src="js/core/insights.js"></script>
+<script src="js/core/ui.js"></script>
+<script src="js/views/subs.js"></script>
+<script src="js/views/overview.js"></script>
+<script src="js/views/calendar.js"></script>
+<script src="js/views/cards.js"></script>
+<script src="js/views/spending.js"></script>
+<script src="js/views/data.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
