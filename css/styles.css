@@ -427,6 +427,14 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numer
 .fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px 2px; margin: 0 0 14px; }
 .fieldset legend { font-size: .8125rem; font-weight: 600; color: var(--text-2); padding: 0 6px; }
 
+/* ── spending ─────────────────────────────────────────────────────────── */
+.month-nav { display: inline-flex; align-items: center; gap: 8px; }
+.month-nav strong { min-width: 128px; text-align: center; font-size: .9375rem; }
+.filter-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.filter-row input[type="search"] { width: 160px; }
+.day-head { padding: 10px 20px 4px; font-size: .75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; background: var(--bg); border-bottom: 1px solid var(--border); }
+.row-amt.refund { color: var(--accent); }
+
 /* ── forms ────────────────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; min-width: 0; }
 .field > label, .field > .label { font-size: .8125rem; font-weight: 600; color: var(--text-2); }

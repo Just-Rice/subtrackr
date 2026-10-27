@@ -556,6 +556,11 @@ function openForm(sub, presetSvcId, presetTierName) {
     const list = st().subs;
     const i = list.findIndex(function (s) { return s.id === rec.id; });
     if (i >= 0) list[i] = rec; else list.push(rec);
+    /* statement lines already imported for this subscription now belong to it,
+       so they stop counting as spending on top of the subscription itself */
+    if (ST.csv) st().expenses.forEach(function (e) {
+      if (!e.subId && ST.csv.matchSub({ subs: [rec] }, e.merchant)) e.subId = rec.id;
+    });
     ST.app.save();
     UI.closeModal(true);
     UI.toast(i >= 0 ? 'Saved.' : rec.name + ' added.');

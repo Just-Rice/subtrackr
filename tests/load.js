@@ -22,6 +22,7 @@ const PURE = [
   'js/core/pricewatch.js',
   'js/core/cardvalue.js',
   'js/core/csv.js',
+  'js/core/budgets.js',
   'js/core/insights.js',
   'js/core/ics.js'
 ];
