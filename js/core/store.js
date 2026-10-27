@@ -109,18 +109,20 @@ function numMap(v, keyOk) {
 
 function cleanCard(c) {
   const b = U.isObj(c.bonus) ? c.bonus : null;
+  /* a card from the catalogue fills its own gaps */
+  const d = (typeof CARD_BY_ID !== 'undefined' && CARD_BY_ID[c.cardId]) || {};
   return {
     id: c.id ? String(c.id) : U.uid(),
     cardId: U.str(c.cardId),
-    name: U.str(c.name).trim() || 'Card',
-    issuer: U.str(c.issuer),
-    color: U.safeColor(c.color, '#4a5060'),
-    fee: U.num(c.fee, 0),
-    cur: cur(c.cur),
+    name: U.str(c.name).trim() || d.name || 'Card',
+    issuer: U.str(c.issuer) || d.issuer || '',
+    color: U.safeColor(c.color, d.color || '#4a5060'),
+    fee: U.num(c.fee, d.fee || 0),
+    cur: cur(c.cur, d.cur),
     feeDate: date(c.feeDate),
     openedAt: date(c.openedAt),
     /* what one reward point is worth, in hundredths of the card's currency */
-    cpp: Math.min(100, U.num(c.cpp, 1)),
+    cpp: Math.min(100, U.num(c.cpp, d.cpp || 1)),
     customCredits: arr(c.customCredits).map(function (cr) {
       return { id: cr.id ? String(cr.id) : U.uid(), name: U.str(cr.name).trim() || 'Credit',
                amount: U.num(cr.amount, 0),

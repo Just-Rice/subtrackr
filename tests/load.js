@@ -18,9 +18,9 @@ const PURE = [
   'js/core/dates.js',
   'js/core/pricing.js',
   'js/core/store.js',
-  'js/core/cardvalue.js',
   'js/core/ledger.js',
   'js/core/pricewatch.js',
+  'js/core/cardvalue.js',
   'js/core/csv.js',
   'js/core/insights.js',
   'js/core/ics.js'

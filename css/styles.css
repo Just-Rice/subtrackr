@@ -395,6 +395,38 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numer
 .cal-wk .muted { font-size: .75rem; text-align: right; }
 .day-detail { margin-top: 16px; }
 
+/* ── cards ────────────────────────────────────────────────────────────── */
+.cc-chip { width: 52px; height: 34px; border-radius: 6px; flex: none; display: inline-flex; align-items: flex-end; padding: 3px 5px; color: #fff; font-size: .5625rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,.45); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 0 0 1px rgba(128,128,128,.3); overflow: hidden; white-space: nowrap; }
+.cardbox { display: flex; flex-direction: column; gap: 12px; }
+.cardbox.paused { opacity: .62; }
+.cardbox.focus { box-shadow: 0 0 0 2px var(--accent); }
+.cardbox-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cardbox-title { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cardbox-title h2 { font-size: 1.0625rem; }
+.cardbox-net { display: flex; flex-direction: column; align-items: flex-end; text-align: right; gap: 2px; }
+.cardbox-net .fig { font-size: 1.5rem; font-weight: 500; }
+.cardbox-net .good, .fig.good { color: var(--accent); }
+.cardbox-net .bad, .fig.bad { color: var(--bad); }
+.cardbox-sub { font-size: .8125rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+.cardbox-line { margin: 0; font-size: .875rem; }
+.cardbox-more summary { cursor: pointer; font-size: .8125rem; font-weight: 600; color: var(--accent); min-height: 32px; display: flex; align-items: center; }
+.vbar { position: relative; height: 12px; border-radius: 6px; background: var(--surface-2); }
+.vbar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--accent); min-width: 2px; }
+.vbar-fee { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--text); border-radius: 1px; }
+.vbar-legend { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: .8125rem; color: var(--muted); }
+.note-warn { margin: 0; font-size: .875rem; color: var(--warn); background: var(--warn-bg); border-radius: 8px; padding: 8px 12px; }
+.credit-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 10px; }
+.credit-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.credit-row:last-child { border-bottom: 0; }
+.credit-row.done .credit-name { color: var(--muted); }
+.credit-main { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.credit-name { font-weight: 600; font-size: .875rem; }
+.credit-sub { font-size: .75rem; color: var(--muted); }
+.credit-state { font-size: .875rem; white-space: nowrap; }
+.bonus { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; }
+.fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px 2px; margin: 0 0 14px; }
+.fieldset legend { font-size: .8125rem; font-weight: 600; color: var(--text-2); padding: 0 6px; }
+
 /* ── forms ────────────────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; min-width: 0; }
 .field > label, .field > .label { font-size: .8125rem; font-weight: 600; color: var(--text-2); }
