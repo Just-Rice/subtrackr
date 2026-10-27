@@ -78,9 +78,31 @@ function render() {
       '<span class="muted">' + (weekCount ? U.plural(weekCount, 'charge') + (weekFee ? ' incl. a card fee' : '') : 'nothing due') + '</span></div></div>';
   }
   $('#calGrid').innerHTML = html + '</div>';
-
+  renderAgenda(from, evs);
   renderDay(byDay[selected] || []);
 }
+
+/* phones get the same four weeks as a list — seven columns do not fit */
+function renderAgenda(from, evs) {
+  let html = '';
+  for (let w = 0; w < 4; w++) {
+    const ws = D.addDays(from, w * 7), we = D.addDays(ws, 6);
+    const list = evs.filter(function (e) { return e.date >= ws && e.date <= we; });
+    const total = U.sum(list.filter(function (e) { return e.kind === 'charge' || e.kind === 'fee'; }), function (e) { return e.usd; });
+    html += '<div class="day-head">' + esc(D.fmtDate(ws, { day: 'numeric', month: 'short' })) + ' – ' + esc(D.fmtDate(we, { day: 'numeric', month: 'short' })) +
+      '<span style="float:right">' + UI.usd(total) + '</span></div>' +
+      (list.length ? '<ul class="rows">' + list.map(function (e, i) {
+        return '<li><button class="row" type="button" data-agenda="' + w + ':' + i + '">' +
+          '<span class="row-when">' + esc(D.fmtDate(e.date, { weekday: 'short', day: 'numeric' })) + '</span>' +
+          '<span class="ev-dot ev-' + e.kind + '" aria-hidden="true"></span>' +
+          '<span class="row-main"><span class="row-title">' + esc(e.title) + '</span><span class="row-sub">' + esc(e.detail || '') + '</span></span>' +
+          '<span class="row-amt">' + evAmount(e) + '</span></button></li>';
+      }).join('') + '</ul>' : '<p class="muted" style="margin:0;padding:12px 20px">Nothing due.</p>');
+    agendaRefs[w] = list;
+  }
+  $('#calAgenda').innerHTML = html;
+}
+const agendaRefs = [];
 
 function renderDay(list) {
   const host = $('#dayDetail');
@@ -116,6 +138,13 @@ function wire() {
     if (again) again.focus();
   });
   $('#icsBtn').addEventListener('click', function () { if (ST.ics) ST.ics.exportFile(st()); });
+  $('#calAgenda').addEventListener('click', function (e) {
+    const b = e.target.closest('[data-agenda]');
+    if (!b) return;
+    const parts = b.dataset.agenda.split(':');
+    const ev = agendaRefs[Number(parts[0])][Number(parts[1])];
+    if (ev) ST.app.act(ev.ref);
+  });
 }
 
 ST.views = ST.views || {};
