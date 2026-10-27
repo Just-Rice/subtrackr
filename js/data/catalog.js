@@ -8,6 +8,7 @@
  *
  *   m = monthly price by region code        y = yearly price by region code
  *   only = tier exists in these markets only
+ *   asOf = { market: 'YYYY-MM' } — when that market's prices were last checked
  */
 
 const CATEGORIES = [
@@ -71,33 +72,34 @@ s('netflix', 'Netflix', 'Netflix', 'video.movies', '#E50914', 'netflix.com',
   'Originals-led movie and series streaming, with ad-supported and 4K tiers.', [
   t('Mobile', { IN: 149 },
     ['One phone or tablet at a time', '480p standard definition', 'Full catalogue, ad-free', 'No TV or computer playback'], { only: ['IN'] }),
-  t('Standard with ads', { US: 7.99, GB: 5.99, DE: 4.99, CA: 8.99, AU: 7.99, BR: 20.90, JP: 890, IN: 199 },
+  t('Standard with ads', { US: 8.99, GB: 7.99, DE: 4.99, CA: 8.99, AU: 7.99, BR: 20.90, JP: 890, IN: 199 },
     ['1080p Full HD', 'Watch on 2 devices at once', 'Ads before and during most titles', 'A few titles unavailable', 'No downloads on the India tier']),
-  t('Standard', { US: 17.99, GB: 12.99, DE: 13.99, CA: 18.99, AU: 18.99, BR: 44.90, JP: 1590, IN: 499 },
+  t('Standard', { US: 19.99, GB: 13.99, DE: 13.99, CA: 18.99, AU: 18.99, BR: 44.90, JP: 1590, IN: 499 },
     ['1080p Full HD, no ads', 'Watch on 2 devices at once', 'Download on 2 devices', 'Add one extra member outside your home (paid)']),
-  t('Premium', { US: 24.99, GB: 19.99, DE: 19.99, CA: 23.99, AU: 25.99, BR: 59.90, JP: 2290, IN: 649 },
+  t('Premium', { US: 26.99, GB: 20.99, DE: 19.99, CA: 23.99, AU: 25.99, BR: 59.90, JP: 2290, IN: 649 },
     ['4K Ultra HD + HDR', 'Watch on 4 devices at once', 'Download on 6 devices', 'Spatial audio', 'Add up to two extra members (paid)'])
-]),
+], { asOf: { US: '2026-10', GB: '2026-10' } }),
 
 s('disneyplus', 'Disney+', 'Disney', 'video.movies', '#0063e5', 'disneyplus.com',
   'Disney, Pixar, Marvel, Star Wars and National Geographic, plus general entertainment via Star/Hulu.', [
-  t('Standard with Ads', { US: 11.99, GB: 6.99, DE: 5.99, CA: 9.99, AU: 9.99, BR: 25.99 },
+  t('Standard with Ads', { US: 12.49, GB: 6.99, DE: 5.99, CA: 9.99, AU: 9.99, BR: 25.99 },
     ['Full catalogue with ad breaks', 'Up to 1080p', '2 streams at once', 'No downloads']),
-  t('Standard', { US: 12.99, GB: 8.99, DE: 9.99, CA: 12.99, AU: 15.99, BR: 34.90 },
-    ['Ad-free', 'Up to 1080p', '2 streams at once', '10 devices for downloads']),
-  t('Premium', { US: 18.99, GB: 12.99, DE: 13.99, CA: 16.99, AU: 20.99, BR: 46.90 },
+  t('Standard', { GB: 8.99, DE: 9.99, CA: 12.99, AU: 15.99, BR: 34.90 },
+    ['Ad-free', 'Up to 1080p', '2 streams at once', '10 devices for downloads', 'Not sold in the US, where Premium is the only ad-free plan'],
+    { only: ['GB', 'DE', 'CA', 'AU', 'BR'] }),
+  t('Premium', { US: 21.49, GB: 12.99, DE: 13.99, CA: 16.99, AU: 20.99, BR: 46.90 },
     ['Ad-free', '4K UHD + HDR and Dolby Atmos', '4 streams at once', '10 devices for downloads'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('hulu', 'Hulu', 'Disney', 'video.movies', '#1ce783', 'hulu.com',
   'Next-day US network TV, FX originals and a large film library. US-only; folded into Disney+ elsewhere.', [
-  t('Hulu (With Ads)', { US: 11.99 },
+  t('Hulu (With Ads)', { US: 12.49 },
     ['Full streaming library with ads', 'Next-day episodes of current network shows', '2 streams at once'], { only: ['US'] }),
-  t('Hulu (No Ads)', { US: 18.99 },
+  t('Hulu (No Ads)', { US: 21.49 },
     ['Ad-free on nearly the whole library', 'Downloads on up to 25 titles', '2 streams at once'], { only: ['US'] }),
-  t('Hulu + Live TV', { US: 89.99 },
+  t('Hulu + Live TV', { US: 99.99 },
     ['95+ live channels', 'Unlimited cloud DVR', 'Disney+ and ESPN+ included', '2 streams at once (unlimited at home add-on)'], { only: ['US'] })
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('primevideo', 'Amazon Prime Video', 'Amazon', 'video.movies', '#00A8E1', 'primevideo.com',
   'Included with Prime, or standalone. Ads run by default unless you pay the ad-free add-on.', [
@@ -113,25 +115,27 @@ s('max', 'HBO Max', 'Warner Bros. Discovery', 'video.movies', '#7B2BF9', 'hbomax
     ['Ad-supported streaming', '1080p', '2 concurrent streams', 'No offline downloads']),
   t('Standard', { US: 18.49, GB: 10.99, DE: 10.99, BR: 44.90 },
     ['Ad-free', '1080p', '2 concurrent streams', '30 offline downloads']),
-  t('Premium', { US: 24.99, GB: 14.99, DE: 14.99, BR: 59.90 },
+  t('Premium', { US: 22.99, GB: 14.99, DE: 14.99, BR: 59.90 },
     ['Ad-free', '4K UHD + Dolby Atmos', '4 concurrent streams', '100 offline downloads'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('peacock', 'Peacock', 'NBCUniversal', 'video.movies', '#FA4616', 'peacocktv.com',
   'NBC and Bravo next-day, Universal film, WWE and Premier League in the US.', [
-  t('Premium', { US: 10.99 },
+  t('Select', { US: 8.99 },
+    ['Bravo, NBC and Peacock originals on demand, with ads', 'No live sport or live NBC', 'Next-day NBC and Bravo'], { only: ['US'] }),
+  t('Premium', { US: 12.99 },
     ['Full library with ads', 'Next-day NBC and Bravo', 'Live sport including Premier League', '3 concurrent streams'], { only: ['US'] }),
-  t('Premium Plus', { US: 16.99 },
+  t('Premium Plus', { US: 19.99 },
     ['Nearly ad-free on demand', 'Live stream of your local NBC channel', 'Offline downloads', '3 concurrent streams'], { only: ['US'] })
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('paramountplus', 'Paramount+', 'Paramount', 'video.movies', '#0064FF', 'paramountplus.com',
   'CBS, Star Trek, Yellowstone-adjacent originals and UEFA football.', [
-  t('Essential', { US: 7.99, GB: 6.99, DE: 7.99, CA: 7.99, AU: 8.99 },
+  t('Essential', { US: 8.99, GB: 6.99, DE: 7.99, CA: 7.99, AU: 8.99 },
     ['Ad-supported library', 'Live NFL on CBS and UEFA', 'No local CBS live feed', '3 concurrent streams']),
-  t('Premium (with Showtime)', { US: 12.99, GB: 10.99, CA: 12.99, AU: 12.99 },
+  t('Premium (with Showtime)', { US: 13.99, GB: 10.99, CA: 12.99, AU: 12.99 },
     ['Ad-free except live TV and a few shows', 'Showtime catalogue included', 'Live local CBS station', 'Offline downloads'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('appletvplus', 'Apple TV+', 'Apple', 'video.movies', '#000000', 'tv.apple.com',
   'A small, entirely original, entirely ad-free catalogue.', [
@@ -145,15 +149,15 @@ s('appletvplus', 'Apple TV+', 'Apple', 'video.movies', '#000000', 'tv.apple.com'
 CATALOG.push(
 s('ytpremium', 'YouTube Premium', 'Google', 'video.live', '#FF0000', 'youtube.com/premium',
   'Ad-free YouTube, background play, downloads, and YouTube Music.', [
-  t('Premium Lite', { US: 7.99, GB: 5.99, DE: 5.99, AU: 11.99 },
+  t('Premium Lite', { US: 8.99, GB: 5.99, DE: 5.99, AU: 11.99 },
     ['No ads on most videos', 'Ads remain on Shorts, music and search', 'No background play or downloads', 'No YouTube Music']),
-  t('Individual', { US: 13.99, GB: 12.99, DE: 12.99, CA: 15.99, AU: 22.99, IN: 149, BR: 24.90, JP: 1280 },
+  t('Individual', { US: 15.99, GB: 12.99, DE: 12.99, CA: 15.99, AU: 22.99, IN: 149, BR: 24.90, JP: 1280 },
     ['Ad-free across all of YouTube', 'Background and picture-in-picture play', 'Offline downloads', 'YouTube Music Premium included']),
-  t('Student', { US: 7.99, GB: 6.99, DE: 7.49, IN: 89, BR: 13.90 },
+  t('Student', { US: 8.99, GB: 6.99, DE: 7.49, IN: 89, BR: 13.90 },
     ['Everything in Individual', 'Annual re-verification of student status', 'Up to 4 years total']),
-  t('Family', { US: 22.99, GB: 19.99, DE: 19.99, CA: 22.99, AU: 34.99, IN: 299, BR: 41.90 },
+  t('Family', { US: 26.99, GB: 19.99, DE: 19.99, CA: 22.99, AU: 34.99, IN: 299, BR: 41.90 },
     ['Up to 5 household members aged 13+', 'Each gets their own recommendations', 'All members must share a home address'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('yttv', 'YouTube TV', 'Google', 'video.live', '#FF0000', 'tv.youtube.com',
   'A full cable replacement: 100+ live US channels with unlimited DVR.', [
@@ -197,13 +201,13 @@ s('fubo', 'Fubo', 'Fubo / Disney', 'video.live', '#F8007F', 'fubo.tv',
 CATALOG.push(
 s('crunchyroll', 'Crunchyroll', 'Sony', 'video.niche', '#F47521', 'crunchyroll.com',
   'The largest licensed anime library, with same-day simulcasts from Japan.', [
-  t('Fan', { US: 7.99, GB: 5.99, DE: 5.99, CA: 9.99, AU: 10.99, IN: 79, BR: 20.90 },
+  t('Fan', { US: 9.99, GB: 5.99, DE: 5.99, CA: 9.99, AU: 10.99, IN: 79, BR: 20.90 },
     ['Ad-free anime', 'Simulcasts within an hour of Japan', '1 concurrent stream', 'Digital manga library']),
-  t('Mega Fan', { US: 11.99, GB: 7.99, DE: 7.99, CA: 14.99, AU: 15.99, IN: 99, BR: 27.90 },
+  t('Mega Fan', { US: 13.99, GB: 7.99, DE: 7.99, CA: 14.99, AU: 15.99, IN: 99, BR: 27.90 },
     ['Everything in Fan', '4 concurrent streams', 'Offline downloads', 'Discounts in the Crunchyroll store']),
-  t('Ultimate Fan', { US: 15.99, GB: 12.99, DE: 12.99, CA: 19.99, AU: 21.99, IN: 149 },
+  t('Ultimate Fan', { US: 17.99, GB: 12.99, DE: 12.99, CA: 19.99, AU: 21.99, IN: 149 },
     ['Everything in Mega Fan', '6 concurrent streams', 'An annual swag box', 'Early access to store merch'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('criterion', 'The Criterion Channel', 'Criterion', 'video.niche', '#8B0000', 'criterionchannel.com',
   'Curated arthouse, world and classic cinema with heavy supplementary material.', [
@@ -237,33 +241,31 @@ s('spotify', 'Spotify Premium', 'Spotify', 'audio.music', '#1DB954', 'spotify.co
   'The largest music catalogue, with the widest regional price spread of any service here.', [
   t('Mini', { IN: 107 },
     ['One device, mobile only', 'Ad-free listening and offline downloads', 'Actually sold as a ₹7 day pass or ₹25 week pass — the figure here is the monthly equivalent', 'Cheapest paid Spotify tier anywhere'], { only: ['IN'] }),
-  t('Individual', { US: 11.99, GB: 11.99, DE: 10.99, CA: 11.99, AU: 13.99, IN: 119, BR: 21.90, JP: 980 },
+  t('Individual', { US: 12.99, GB: 11.99, DE: 10.99, CA: 11.99, AU: 13.99, IN: 119, BR: 21.90, JP: 980 },
     ['Ad-free music and podcasts', 'Offline downloads on 5 devices', 'Unlimited skips', 'Higher-bitrate streaming', 'One account']),
-  t('Duo', { US: 16.99, GB: 16.99, DE: 14.99, CA: 15.99, AU: 18.99, IN: 149, BR: 27.90 },
+  t('Duo', { US: 18.99, GB: 16.99, DE: 14.99, CA: 15.99, AU: 18.99, IN: 149, BR: 27.90 },
     ['Two Premium accounts for people at one address', 'Separate libraries and recommendations', 'Duo Mix, a shared playlist']),
-  t('Family', { US: 19.99, GB: 19.99, DE: 17.99, CA: 18.99, AU: 21.99, IN: 179, BR: 34.90, JP: 1580 },
+  t('Family', { US: 21.99, GB: 19.99, DE: 17.99, CA: 18.99, AU: 21.99, IN: 179, BR: 34.90, JP: 1580 },
     ['Up to 6 accounts at one address', 'Explicit-content block per account', 'Spotify Kids app', 'Family Mix playlist']),
-  t('Student', { US: 5.99, GB: 5.99, DE: 5.99, CA: 5.99, AU: 6.99, IN: 59, BR: 11.90 },
+  t('Student', { US: 6.99, GB: 5.99, DE: 5.99, CA: 5.99, AU: 6.99, IN: 59, BR: 11.90 },
     ['Full Premium at about half price', 'Verify enrolment each year', 'Up to 4 years', 'Bundled with Hulu in the US'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('applemusic', 'Apple Music', 'Apple', 'audio.music', '#FA243C', 'music.apple.com',
   'Lossless and spatial audio at no extra cost, tightly bound to the Apple ecosystem.', [
-  t('Voice', { US: 4.99 },
-    ['Siri-only request and playback', 'No on-screen library browsing', 'No lossless or offline downloads'], { only: ['US'] }),
-  t('Student', { US: 5.99, GB: 5.99, DE: 5.99, CA: 5.99, AU: 5.99, IN: 59, JP: 580 },
+  t('Student', { US: 6.99, GB: 5.99, DE: 5.99, CA: 5.99, AU: 5.99, IN: 59, JP: 580 },
     ['Full Apple Music', 'Apple TV+ included in most markets', 'Verify enrolment each year']),
-  t('Individual', { US: 10.99, GB: 10.99, DE: 10.99, CA: 10.99, AU: 12.99, IN: 99, BR: 21.90, JP: 1080 },
+  t('Individual', { US: 11.99, GB: 10.99, DE: 10.99, CA: 10.99, AU: 12.99, IN: 99, BR: 21.90, JP: 1080 },
     ['100M+ tracks, ad-free', 'Lossless and Dolby Atmos spatial audio', 'Offline downloads', 'Live radio and curated stations']),
-  t('Family', { US: 16.99, GB: 16.99, DE: 16.99, CA: 16.99, AU: 19.99, IN: 149, BR: 34.90, JP: 1680 },
+  t('Family', { US: 19.99, GB: 16.99, DE: 16.99, CA: 16.99, AU: 19.99, IN: 149, BR: 34.90, JP: 1680 },
     ['Up to 6 people via Family Sharing', 'Personal library and recommendations each', 'Everything in Individual'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('amazonmusic', 'Amazon Music Unlimited', 'Amazon', 'audio.music', '#25D1DA', 'music.amazon.com',
   'Full-catalogue music streaming, discounted if you already pay for Prime.', [
   t('Single Device', { US: 5.99 },
     ['One Echo or Fire TV device only', 'Full catalogue on that device', 'No phone or web playback'], { only: ['US'] }),
-  t('Individual (Prime member)', { US: 9.99, GB: 9.99, DE: 9.99, IN: 149 },
+  t('Individual (Prime member)', { US: 10.99, GB: 9.99, DE: 9.99, IN: 149 },
     ['Full catalogue, ad-free', 'Ultra HD and spatial audio', 'Offline downloads', 'Requires an active Prime membership']),
   t('Individual', { US: 11.99, GB: 11.99, DE: 11.99, CA: 11.99, AU: 13.99, IN: 149, BR: 19.90 },
     ['Full catalogue, ad-free', 'Ultra HD lossless and Dolby Atmos', 'Offline downloads', 'No Prime membership needed']),
@@ -360,10 +362,10 @@ s('googleone', 'Google One', 'Google', 'cloud.storage', '#4285F4', 'one.google.c
   t('Premium 2TB', { US: 9.99, GB: 7.99, DE: 9.99, CA: 13.99, AU: 12.49, IN: 650, BR: 34.99, JP: 1300 },
     ['2TB pooled storage', 'Google Workspace premium features', 'Dark web report and VPN in some markets', 'Family sharing for 5']),
   t('Google AI Pro', { US: 19.99, GB: 18.99, DE: 21.99, CA: 27.99, AU: 32.99, IN: 1950, BR: 96.99, JP: 2900 },
-    ['2TB storage', 'Gemini 3 Pro with higher limits', 'Gemini in Gmail, Docs and Sheets', 'Veo video generation credits', 'NotebookLM higher limits']),
-  t('Google AI Ultra', { US: 249.99, GB: 234.99, IN: 24500 },
+    ['5TB storage', 'Gemini 3 Pro with higher limits', 'Gemini in Gmail, Docs and Sheets', 'Veo video generation credits', 'NotebookLM higher limits']),
+  t('Google AI Ultra', { US: 199.99 },
     ['30TB storage', 'Highest Gemini model access and limits', 'Veo and Flow at the top quota', 'YouTube Premium included', 'Project Mariner agent access'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('icloud', 'iCloud+', 'Apple', 'cloud.storage', '#3693F3', 'apple.com/icloud',
   'Device-backup-first storage plus Apple\'s privacy add-ons.', [
@@ -569,6 +571,8 @@ s('microsoft365', 'Microsoft 365', 'Microsoft', 'work.notes', '#D83B01', 'micros
     ['Word, Excel, PowerPoint, Outlook on desktop', '1TB OneDrive storage', 'One person, up to 5 devices at once', 'Microsoft Copilot AI credits', 'Microsoft Defender and Editor']),
   t('Family', { US: 12.99, GB: 10.99, DE: 13.00, CA: 16.00, AU: 18.00, IN: 619, BR: 52.00, JP: 2100 },
     ['Everything in Personal for up to 6 people', '1TB OneDrive each — 6TB total', 'Family Safety location and screen time', 'Each person gets their own Copilot credits']),
+  t('Premium', { US: 19.99 },
+    ['Everything in Personal or Family', 'The highest Copilot usage in Word, Excel and Outlook', 'Advanced reasoning and research agents', 'Sold as a step up from Personal or Family']),
   t('Business Standard', { US: 12.50, GB: 10.30, DE: 11.70, IN: 770 },
     ['Desktop and web Office apps per user', 'Custom business email domain', 'Teams with webinar hosting', '1TB OneDrive per user']),
   t('Business Premium', { US: 22.00, GB: 18.10, DE: 20.60 },
@@ -703,8 +707,8 @@ s('chatgpt', 'ChatGPT', 'OpenAI', 'ai.chat', '#10A37F', 'chatgpt.com',
   'The most widely used assistant; cheaper regional tiers exist in a handful of markets.', [
   t('Free', { US: 0 },
     ['Access to the standard model', 'Limited reasoning and image generation', 'Rate-limited at busy times']),
-  t('Go', { IN: 399, ID: 75000, BR: 39.90 },
-    ['A low-cost regional tier', '10x the free message limits', 'Image generation and file uploads', 'Not sold in the US or EU'], { only: ['IN', 'ID', 'BR'] }),
+  t('Go', { US: 8.00, IN: 399, ID: 75000, BR: 39.90 },
+    ['The low-cost tier, sold worldwide since January 2026', 'Much higher limits than Free', 'Image generation and file uploads', 'Ads in some markets; no reasoning models or Sora']),
   t('Plus', { US: 20.00, GB: 16.00, DE: 23.00, CA: 28.00, AU: 30.00, IN: 1999, BR: 100.00, JP: 3000 },
     ['5x free message limits', 'Advanced reasoning models', 'Deep research and agent mode', 'Sora video generation', 'Custom GPTs and Projects']),
   t('Pro', { US: 200.00, GB: 160.00, DE: 229.00, IN: 19900 },
@@ -713,7 +717,7 @@ s('chatgpt', 'ChatGPT', 'OpenAI', 'ai.chat', '#10A37F', 'chatgpt.com',
     ['Shared workspace with admin console', 'Data excluded from training by default', 'Higher limits than Plus', 'Connectors to internal tools']),
   t('Business (per seat, monthly)', { US: 30.00, GB: 24.00, DE: 28.00 },
     ['Same as annual Business', 'No yearly commitment'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('claude', 'Claude', 'Anthropic', 'ai.chat', '#D97757', 'claude.ai',
   'Assistant with a strong long-document and coding lean; Claude Code is bundled from Pro up.', [
@@ -736,12 +740,12 @@ s('claude', 'Claude', 'Anthropic', 'ai.chat', '#D97757', 'claude.ai',
 s('gemini', 'Google Gemini Advanced', 'Google', 'ai.chat', '#8E7CF7', 'gemini.google.com',
   'Sold as the Google AI tiers of Google One — storage and Gemini in one subscription.', [
   t('Google AI Pro', { US: 19.99, GB: 18.99, DE: 21.99, CA: 27.99, AU: 32.99, IN: 1950, BR: 96.99, JP: 2900 },
-    ['Gemini 3 Pro with the highest consumer limits', 'Gemini in Gmail, Docs, Sheets and Meet', '2TB Google One storage', 'Veo video generation', 'NotebookLM with raised limits']),
-  t('Google AI Ultra', { US: 249.99, GB: 234.99, IN: 24500 },
+    ['Gemini 3 Pro with the highest consumer limits', 'Gemini in Gmail, Docs, Sheets and Meet', '5TB Google One storage', 'Veo video generation', 'NotebookLM with raised limits']),
+  t('Google AI Ultra', { US: 199.99 },
     ['Top model tier and Deep Think mode', '30TB storage', 'Highest Veo and Flow quotas', 'YouTube Premium included', 'Agentic tools in early access']),
   t('Gemini Code Assist Standard', { US: 22.80, GB: 19.00, DE: 21.00 },
     ['AI code assistance across IDEs', 'Per-user commercial licence', 'Larger context for codebases', 'Google Cloud integration'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('perplexity', 'Perplexity Pro', 'Perplexity AI', 'ai.chat', '#20808D', 'perplexity.ai',
   'Search-first answers with inline citations and a shopping/agent layer.', [
@@ -811,21 +815,21 @@ s('gamepass', 'Xbox Game Pass', 'Microsoft', 'games.pass', '#107C10', 'xbox.com/
     ['~50 game library on console, PC and cloud', 'Online console multiplayer', 'Cloud gaming at 1080p', 'Member discounts']),
   t('Premium', { US: 14.99, GB: 12.99, DE: 14.99, CA: 19.99, AU: 22.95, IN: 749, BR: 59.99 },
     ['~200 game library', 'Online console multiplayer', 'New Xbox games within a year of launch', 'Cloud gaming at 1440p']),
-  t('Ultimate', { US: 29.99, GB: 22.99, DE: 26.99, CA: 39.99, AU: 44.95, IN: 1349, BR: 109.99 },
-    ['~400 game library', 'Day-one Xbox Game Studios and Activision releases', 'Fortnite Crew and EA Play included', 'Cloud gaming at 4K', 'Console, PC and cloud all covered']),
-  t('PC Game Pass', { US: 16.49, GB: 12.99, DE: 14.99, CA: 21.99, AU: 24.95, IN: 749 },
+  t('Ultimate', { US: 22.99, GB: 22.99, DE: 26.99, CA: 39.99, AU: 44.95, IN: 1349, BR: 109.99 },
+    ['~400 game library', 'Day-one Xbox Game Studios releases (new Call of Duty no longer at launch)', 'Fortnite Crew and EA Play included', 'Cloud gaming at 4K', 'Console, PC and cloud all covered']),
+  t('PC Game Pass', { US: 13.99, GB: 12.99, DE: 14.99, CA: 21.99, AU: 24.95, IN: 749 },
     ['PC library including day-one first-party', 'EA Play on PC included', 'No console entitlement'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('psplus', 'PlayStation Plus', 'Sony', 'games.pass', '#0070D1', 'playstation.com',
   'Console multiplayer plus, on the higher tiers, a large back catalogue.', [
-  t('Essential', { US: 11.99, GB: 8.99, DE: 8.99, CA: 14.99, AU: 15.95, IN: 499, BR: 44.90, JP: 850 },
+  t('Essential', { US: 10.99, GB: 8.99, DE: 8.99, CA: 14.99, AU: 15.95, IN: 499, BR: 44.90, JP: 850 },
     ['Online multiplayer', 'Two monthly games to keep while subscribed', 'Cloud saves', 'Exclusive store discounts']),
-  t('Extra', { US: 17.99, GB: 13.49, DE: 13.99, CA: 21.99, AU: 24.95, IN: 849, BR: 69.90, JP: 1300 },
+  t('Extra', { US: 16.99, GB: 13.49, DE: 13.99, CA: 21.99, AU: 24.95, IN: 849, BR: 69.90, JP: 1300 },
     ['Everything in Essential', '400+ PS5 and PS4 game catalogue', 'Game trials on select titles']),
-  t('Premium', { US: 21.99, GB: 16.99, DE: 16.99, CA: 26.99, AU: 29.95, IN: 999, BR: 84.90, JP: 1550 },
+  t('Premium', { US: 19.99, GB: 16.99, DE: 16.99, CA: 26.99, AU: 29.95, IN: 999, BR: 84.90, JP: 1550 },
     ['Everything in Extra', 'Classics catalogue from PS1, PS2, PSP and PS3', 'Cloud streaming', 'Time-limited game trials'])
-]),
+], { asOf: { US: '2026-10' } }),
 
 s('nso', 'Nintendo Switch Online', 'Nintendo', 'games.pass', '#E60012', 'nintendo.com',
   'The cheapest console online service, sold almost entirely on annual terms.', [

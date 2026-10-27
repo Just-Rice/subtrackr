@@ -66,6 +66,10 @@ app.act = function (ref) {
   } else if (ref.type === 'card') {
     app.go('#/cards');
     if (ST.views.cards.focus) ST.views.cards.focus(ref.id);
+  } else if (ref.type === 'price') {
+    const sub = ST.views.subs.findSub(ref.id);
+    app.go('#/subs');
+    if (sub) ST.views.subs.openPriceChange(sub);
   } else if (ref.type === 'budget') {
     app.go('#/spending/budgets');
   } else if (ref.route) {

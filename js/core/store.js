@@ -209,10 +209,20 @@ function sanitise(raw) {
 function migrate(raw) {
   if (!U.isObj(raw)) return freshState();
   if (Number(raw.version) >= 2) return sanitise(raw);
-  return sanitise({
+  const st = sanitise({
     settings: { region: raw.region, currency: raw.currency, theme: raw.theme },
     subs: raw.subs, compare: raw.compare, fx: raw.fx
   });
+  /* v1 never recorded the list price a subscription was added at. Assume the
+     amount is it when the subscription came from the catalogue in the market's
+     own currency, so a publisher's price rise since then can be spotted. */
+  const local = REGION_BY_CODE[st.settings.region].cur;
+  st.subs.forEach(function (s) {
+    if (!s.quoted && SERVICE_BY_ID[s.serviceId] && s.tierName && s.cur === local && s.amount > 0) {
+      s.quoted = { amount: s.amount, cur: s.cur, at: '', region: st.settings.region };
+    }
+  });
+  return st;
 }
 
 function readJson(ls, key) {

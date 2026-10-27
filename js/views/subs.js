@@ -105,6 +105,7 @@ function renderSubList() {
       '<div class="sub-actions">' +
         '<button class="btn btn-sm" type="button" data-act="edit">Edit</button>' +
         (SERVICE_BY_ID[s.serviceId] ? '<button class="btn btn-sm" type="button" data-act="similar">Compare similar</button>' : '') +
+        (ST.priceWatch && ST.priceWatch.changeFor(st(), s) ? '<button class="btn btn-sm" type="button" data-act="price">Review price</button>' : '') +
         (ST.advisor ? '<button class="btn btn-sm" type="button" data-act="use" title="Count one use this month, for cost per use">+1 use</button>' : '') +
         '<button class="btn btn-sm" type="button" data-act="toggle">' + (s.active ? 'Pause' : 'Resume') + '</button>' +
         '<button class="btn btn-sm btn-danger" type="button" data-act="del">Remove</button>' +
@@ -264,13 +265,16 @@ function serviceCard(svc) {
 
 /* ─────────────────────────────  tiers  ───────────────────────────── */
 
-function asOfNote(svc, t) {
-  const asOf = t.asOf || svc.asOf;
-  if (!asOf) return '';
+/* when this market's list price was last checked — anything without a date
+   comes from the original snapshot */
+const SNAPSHOT = '2025-09';
+function asOfNote(svc) {
+  const checked = svc.asOf && svc.asOf[reg()];
+  const asOf = checked || SNAPSHOT;
   const months = (Number(D.todayStr().slice(0, 4)) - Number(asOf.slice(0, 4))) * 12 +
                  Number(D.todayStr().slice(5, 7)) - Number(asOf.slice(5, 7));
-  return '<div class="tier-native">List price as of ' + esc(D.fmtMonth(asOf)) +
-    (months > 12 ? ' <span class="est-tag">may be outdated</span>' : '') + '</div>';
+  return '<div class="tier-native">' + (checked ? 'List price checked ' : 'From the ') + esc(D.fmtMonth(asOf)) +
+    (checked ? '' : ' snapshot') + (months > 12 ? ' <span class="est-tag">may be outdated</span>' : '') + '</div>';
 }
 
 function tierCards(svc, opts) {
@@ -297,7 +301,7 @@ function tierCards(svc, opts) {
       const yearly = t.y && t.y[reg()] != null
         ? '<div class="tier-native">' + UI.amt(t.y[reg()], region.cur) + ' charged once a year</div>'
         : '<div class="tier-native">' + UI.usd(p.monthlyUsd * 12) + ' a year</div>';
-      priceHtml += native + equiv + yearly + (p.exact ? asOfNote(svc, t) : '');
+      priceHtml += native + equiv + yearly + (p.exact ? asOfNote(svc) : '');
       if (!p.exact) priceHtml += '<div class="tier-native"><span class="est-tag">est.</span> not a published local price</div>';
     }
     return '<div class="tier-card' + (isCheapest ? ' is-cheapest' : '') + '">' +
@@ -561,6 +565,34 @@ function openForm(sub, presetSvcId, presetTierName) {
 
 function findSub(id) { return st().subs.filter(function (s) { return s.id === id; })[0]; }
 
+/* the publisher changed the list price since this was added */
+function openPriceChange(sub) {
+  const ch = ST.priceWatch && ST.priceWatch.changeFor(st(), sub);
+  if (!ch) { openForm(sub); return; }
+  const up = ch.diffUsd > 0;
+  const same = Math.abs(sub.amount - ch.was.amount) < 0.005 && sub.cur === ch.was.cur;
+  UI.openModal(sub.name + ' ' + sub.tierName + ' price ' + (up ? 'rise' : 'cut'),
+    '<p>' + esc(ch.svc.company) + ' now lists ' + esc(sub.tierName) + ' at <strong>' + M.fmtMoney(ch.now.amount, ch.now.cur) +
+      '</strong> in ' + esc((REGION_BY_CODE[sub.quoted.region] || UI.region()).name) +
+      ', ' + (up ? 'up' : 'down') + ' from ' + M.fmtMoney(ch.was.amount, ch.was.cur) + ' when you added it.</p>' +
+    '<p class="sub">' + (same
+      ? 'Your tracked amount still says ' + M.fmtMoney(sub.amount, sub.cur) + '. That is about ' + UI.usd(Math.abs(ch.yearUsd)) + ' a year ' + (up ? 'more' : 'less') + ' than you are tracking.'
+      : 'You track ' + M.fmtMoney(sub.amount, sub.cur) + ', which already differs from the list price — a promo or bundle, perhaps.') + '</p>' +
+    '<div class="modal-foot">' +
+      '<button class="btn" type="button" data-price="keep">Keep ' + M.fmtMoney(sub.amount, sub.cur) + '</button>' +
+      '<button class="btn btn-primary" type="button" data-price="update">Update to ' + M.fmtMoney(ch.now.amount, ch.now.cur) + '</button>' +
+    '</div>');
+  $$('#modalBody [data-price]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      ST.priceWatch.accept(sub, ch, b.dataset.price === 'update');
+      ST.app.save();
+      UI.closeModal(true);
+      ST.app.render();
+      UI.toast(b.dataset.price === 'update' ? sub.name + ' updated.' : 'Kept your amount.');
+    });
+  });
+}
+
 /* ─────────────────────────────  wiring  ───────────────────────────── */
 
 function wire() {
@@ -575,6 +607,7 @@ function wire() {
     if (act === 'edit') openForm(sub);
     else if (act === 'similar') compareSimilar(sub.serviceId);
     else if (act === 'toggle') { sub.active = !sub.active; ST.app.save(); ST.app.render(); }
+    else if (act === 'price') openPriceChange(sub);
     else if (act === 'use') {
       const k = D.monthKey(D.todayStr());
       sub.uses[k] = (sub.uses[k] || 0) + 1;
@@ -684,6 +717,6 @@ function render(route) {
 }
 
 ST.views = ST.views || {};
-ST.views.subs = { wire: wire, render: render, openForm: openForm, findSub: findSub };
+ST.views.subs = { wire: wire, render: render, openForm: openForm, findSub: findSub, openPriceChange: openPriceChange };
 
 })(window.ST = window.ST || {});
