@@ -64,7 +64,7 @@ function flagsFor(s) {
   }
   if (ST.priceWatch) {
     const ch = ST.priceWatch.changeFor(st(), s);
-    if (ch) out.push('<span class="tag ' + (ch.diff > 0 ? 'tag-bad' : 'tag-good') + '">List price ' + (ch.diff > 0 ? 'up' : 'down') + '</span>');
+    if (ch) out.push('<span class="tag ' + (ch.diffUsd > 0 ? 'tag-bad' : 'tag-good') + '">List price ' + (ch.diffUsd > 0 ? 'up' : 'down') + '</span>');
   }
   if (s.uses && ST.advisor) {
     const cpu = ST.advisor.costPerUse(s);
