@@ -23,8 +23,10 @@ const PURE = [
   'js/core/cardvalue.js',
   'js/core/csv.js',
   'js/core/budgets.js',
+  'js/core/advisor.js',
   'js/core/insights.js',
-  'js/core/ics.js'
+  'js/core/ics.js',
+  'js/core/sync.js'
 ];
 
 function memoryStorage() {
@@ -40,7 +42,7 @@ function memoryStorage() {
 function load(opts) {
   const o = opts || {};
   const storage = memoryStorage();
-  const ctx = { console, localStorage: storage, setTimeout, clearTimeout, Date, Intl };
+  const ctx = { console, localStorage: storage, setTimeout, clearTimeout, Date, Intl, TextEncoder, TextDecoder, crypto: globalThis.crypto, btoa, atob };
   ctx.window = ctx;
   vm.createContext(ctx);
   PURE.forEach(f => {

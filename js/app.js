@@ -134,6 +134,55 @@ app.refreshFx = function (manual) {
     });
 };
 
+/* ── reminders and install ── */
+
+const NOTIFIED = 'subtrackr.notified';
+const ROUTE_FOR = { sub: 'subs', price: 'subs', card: 'cards', budget: 'spending/budgets' };
+
+/* Browsers only let a page notify while it is running, so reminders fire
+   when the app is opened or brought back to the front — at most once each. */
+function notifyDue() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  let sent = {};
+  try { sent = JSON.parse(localStorage.getItem(NOTIFIED)) || {}; } catch (e) { /* storage blocked */ }
+  ST.insights.alerts(app.state).filter(function (a) { return a.priority <= 3 && !sent[a.id]; }).slice(0, 3).forEach(function (a) {
+    sent[a.id] = ST.dates.todayStr();
+    const opts = { body: a.body, icon: 'icons/icon-192.png', tag: a.id,
+                   data: { url: './#/' + (ROUTE_FOR[a.action && a.action.type] || 'overview') } };
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(function (r) { r.showNotification(a.title, opts); });
+    } else {
+      try { new Notification(a.title, opts); } catch (e) { /* some browsers only allow it from a worker */ }
+    }
+  });
+  /* forget anything older than two months */
+  const cutoff = ST.dates.addDays(ST.dates.todayStr(), -60);
+  Object.keys(sent).forEach(function (k) { if (sent[k] < cutoff) delete sent[k]; });
+  try { localStorage.setItem(NOTIFIED, JSON.stringify(sent)); } catch (e) { /* storage blocked */ }
+}
+
+app.reminderState = function () {
+  if (!('Notification' in window)) return 'unsupported';
+  return Notification.permission;          /* default | granted | denied */
+};
+app.enableReminders = function () {
+  if (!('Notification' in window)) return Promise.resolve('unsupported');
+  return Notification.requestPermission().then(function (p) { if (p === 'granted') notifyDue(); return p; });
+};
+
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  installPrompt = e;
+  if (app.route && app.route.view === 'data') app.render();
+});
+app.canInstall = function () { return !!installPrompt; };
+app.install = function () {
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  installPrompt.userChoice.then(function () { installPrompt = null; app.render(); });
+};
+
 /* ── phone drawer ── */
 
 function openDrawer() {
@@ -235,7 +284,16 @@ if (loaded.from === 'v1') {
 if (fxAgeHours() > 12) app.refreshFx(false);
 /* a tab left open for days would otherwise keep the rates it booted with */
 document.addEventListener('visibilitychange', function () {
-  if (document.visibilityState === 'visible' && fxAgeHours() > 12) app.refreshFx(false);
+  if (document.visibilityState !== 'visible') return;
+  if (fxAgeHours() > 12) app.refreshFx(false);
+  notifyDue();
+  app.render();
 });
+
+/* offline support — only over http(s); opening the file directly still works without it */
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  navigator.serviceWorker.register('sw.js').catch(function () { /* private mode, or blocked */ });
+}
+notifyDue();
 
 })(window.ST = window.ST || {});

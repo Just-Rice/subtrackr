@@ -13,6 +13,8 @@
 <meta property="og:description" content="Subscriptions priced for your market, what your credit cards actually pay you back, and where the rest of the money goes. No account, nothing uploaded.">
 <meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="css/styles.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'><rect width='28' height='28' rx='7' fill='%230f7b4f'/><path d='M8 17.5c1.2 1.4 3 2 5 2 2.6 0 4.5-1.1 4.5-3s-1.7-2.5-4.5-3c-2.6-.5-4-1.2-4-2.9C9 8.8 10.8 8 13 8c1.7 0 3.2.5 4.3 1.6' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>">
 </head>
 <body>
@@ -157,7 +159,7 @@
     <!-- ───────────── DATA ───────────── -->
     <section class="view narrow" id="view-data" aria-labelledby="h-data" hidden>
       <div class="view-head"><div><h1 id="h-data">Your data</h1>
-        <p class="sub">Everything lives in this browser's local storage. Nothing is uploaded anywhere.</p></div></div>
+        <p class="sub">Everything lives in this browser's local storage. Nothing is uploaded unless you use the encrypted sync below.</p></div></div>
       <div id="dataRoot"></div>
     </section>
 
@@ -198,7 +200,10 @@
 <script src="js/core/cardvalue.js"></script>
 <script src="js/core/csv.js"></script>
 <script src="js/core/budgets.js"></script>
+<script src="js/core/advisor.js"></script>
 <script src="js/core/insights.js"></script>
+<script src="js/core/ics.js"></script>
+<script src="js/core/sync.js"></script>
 <script src="js/core/ui.js"></script>
 <script src="js/views/subs.js"></script>
 <script src="js/views/overview.js"></script>

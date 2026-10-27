@@ -37,6 +37,7 @@ function render() {
         '<input type="file" id="importFile" accept="application/json,.json" hidden>' +
         '<button class="btn btn-danger" type="button" id="wipeBtn">Erase everything</button>' +
       '</div></section>' +
+    remindersHtml() +
     (ST.sync ? ST.sync.cardHtml() : '') +
     '<section class="card"><div class="card-head"><h2>Exchange rates</h2></div>' +
       '<p class="muted" style="margin:0">' + fx + '</p>' +
@@ -46,6 +47,24 @@ function render() {
       '<p>Where a publisher\'s exact local price isn\'t in the catalogue, the price is estimated from the US price and that market\'s typical price level for digital subscriptions, then converted. Estimates are marked <span class="est-tag">est.</span></p>' +
       '<p><strong>Show prices in</strong> only changes the currency the numbers are displayed in.</p>' +
       '<p>Card fees, credits and earn rates are a dated snapshot of each issuer\'s published terms. Check the issuer\'s site before you apply — they change often.</p>' +
+    '</div></section>';
+}
+
+function remindersHtml() {
+  const state = ST.app.reminderState();
+  const status = {
+    granted: 'On — you get a notification for trials ending, credits lapsing, bonus deadlines, fees and budgets when Subtrackr opens.',
+    denied: 'Blocked in this browser\'s site settings.',
+    unsupported: 'This browser cannot show notifications.',
+    default: 'Off.'
+  }[state];
+  return '<section class="card"><div class="card-head"><h2>Reminders and app</h2></div>' +
+    '<p class="muted" style="margin:0">' + status + ' Browsers only let a page remind you while it is open, so for reminders that always fire, ' +
+      '<a href="#/calendar">export the calendar</a> into your phone\'s calendar app.</p>' +
+    '<div class="row-btns">' +
+      (state === 'default' ? '<button class="btn" type="button" id="remindOn">Turn on reminders</button>' : '') +
+      (ST.app.canInstall() ? '<button class="btn" type="button" id="installBtn">Install as an app</button>' : '') +
+      '<button class="btn" type="button" id="icsData">Export calendar (.ics)</button>' +
     '</div></section>';
 }
 
@@ -100,6 +119,15 @@ function wire() {
       UI.toast('Everything erased.');
     } else if (id === 'fxRefresh') {
       ST.app.refreshFx(true);
+    } else if (id === 'remindOn') {
+      ST.app.enableReminders().then(function (p) {
+        UI.toast(p === 'granted' ? 'Reminders on.' : 'Reminders were not allowed.');
+        render();
+      });
+    } else if (id === 'installBtn') {
+      ST.app.install();
+    } else if (id === 'icsData') {
+      ST.ics.exportFile(st());
     }
   });
 
@@ -111,8 +139,15 @@ function wire() {
     const reader = new FileReader();
     reader.onload = function () {
       input.value = '';
+      const text = reader.result;
+      if (ST.sync && ST.sync.isEncrypted(text)) {
+        ST.sync.askPassphrase('Open the encrypted backup').then(function (p) { return ST.sync.decrypt(text, p); })
+          .then(function (payload) { confirmImport(S.parseImport(JSON.stringify(payload))); })
+          .catch(function (err) { if (err.message !== 'cancelled') UI.toast(err.message); });
+        return;
+      }
       let incoming;
-      try { incoming = S.parseImport(reader.result); }
+      try { incoming = S.parseImport(text); }
       catch (err) { UI.toast('That file could not be read as a Subtrackr export.'); return; }
       confirmImport(incoming);
     };
@@ -124,9 +159,10 @@ function wire() {
     const b = e.target.closest('[data-import]');
     if (b) applyImport(b.dataset.import);
   });
+  if (ST.sync) ST.sync.wire();
 }
 
 ST.views = ST.views || {};
-ST.views.data = { wire: wire, render: render };
+ST.views.data = { wire: wire, render: render, confirmImport: confirmImport };
 
 })(window.ST = window.ST || {});

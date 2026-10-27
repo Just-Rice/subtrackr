@@ -162,7 +162,8 @@ function renderAdvice() {
     tips.map(function (t) {
       return '<li class="row"><div class="row-main"><span class="row-title">' + esc(t.title) + '</span>' +
         '<span class="row-sub">' + esc(t.body) + '</span></div>' +
-        (t.saveUsd ? '<span class="row-amt" style="color:var(--accent)">' + UI.usd(t.saveUsd) + '/yr</span>' : '') + '</li>';
+        (t.saveUsd ? '<span class="row-amt" style="color:var(--accent)">' + UI.usd(t.saveUsd, { dec: 0 }) + '/yr</span>' : '') +
+        '<button class="btn btn-sm" type="button" data-tip="' + esc(t.id) + '" aria-label="Hide this idea">Hide</button></li>';
     }).join('') + '</ul></section>';
 }
 
@@ -625,6 +626,13 @@ function wire() {
         ST.app.save(); ST.app.render(); UI.toast('Removed.');
       }
     }
+  });
+
+  $('#subAdvice').addEventListener('click', function (e) {
+    const b = e.target.closest('[data-tip]');
+    if (!b) return;
+    st().dismissed['tip:' + b.dataset.tip] = true;
+    ST.app.save(); ST.app.render();
   });
 
   $('#subFilter').addEventListener('click', function (e) {
