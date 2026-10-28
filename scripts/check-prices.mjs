@@ -175,7 +175,7 @@ async function main() {
     try { res = await request(prompt.text); }
     catch (e) {
       if (e.message === 'limit') { stopped = 'stopped at the --limit of ' + o.limit + ' requests'; break; }
-      if (G.modelProblem(e)) { stopped = 'every model’s free allowance ran out'; break; }
+      if (G.modelProblem(e)) { stopped = G.modelProblem(e) === 'network' ? 'Gemini could not be reached' : 'every model’s free allowance ran out'; break; }
       failed.push(svc.name + ': ' + e.message); continue;
     }
     checked++;
@@ -211,7 +211,7 @@ async function main() {
     try { res = await request(cardPrompt(card, today)); }
     catch (e) {
       if (e.message === 'limit') { stopped = 'stopped at the --limit of ' + o.limit + ' requests'; break; }
-      if (G.modelProblem(e)) { stopped = 'every model’s free allowance ran out'; break; }
+      if (G.modelProblem(e)) { stopped = G.modelProblem(e) === 'network' ? 'Gemini could not be reached' : 'every model’s free allowance ran out'; break; }
       failed.push(card.name + ': ' + e.message); continue;
     }
     checked++;

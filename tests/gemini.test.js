@@ -26,6 +26,24 @@ test('a failure is read as used up for the day, busy for the minute, missing, or
   assert.equal(G.modelProblem(new Error('[404] models/gemini-x is not found for API version v1beta')), 'missing');
   assert.equal(G.modelProblem(new Error('[503] UNAVAILABLE: high demand')), 'minute');
   assert.equal(G.modelProblem(new Error('[401] Firebase App Check token is invalid')), null);
+  assert.equal(G.modelProblem(new Error('AI: Error fetching from https://firebasevertexai.googleapis.com/v1beta/projects/p/models/gemini-x:generateContent: Failed to fetch (AI/error)')), 'network');
+  assert.equal(G.modelProblem(new TypeError('fetch failed')), 'network');
+});
+
+test('a model that gets no reply is passed over once, not remembered as spent', async () => {
+  const { G, MODELS } = setup();
+  const NOREPLY = new Error('AI: Error fetching from https://firebasevertexai.googleapis.com/v1beta/projects/p/models/' + MODELS[0] + ':generateContent: Failed to fetch (AI/error)');
+  const tried = [];
+  const r = await G.withModels('site', async name => { tried.push(name); if (name === MODELS[0]) throw NOREPLY; return 'from ' + name; });
+  assert.equal(r.model, MODELS[1]);
+  tried.length = 0;
+  await G.withModels('site', async name => { tried.push(name); return 'ok'; });
+  assert.deepEqual(tried, [MODELS[0]], 'the best model is asked first again next time');
+  /* offline: every model fails the same way, the error comes out, and nothing is marked spent */
+  await assert.rejects(G.withModels('site', async () => { throw new TypeError('fetch failed'); }), /fetch failed/);
+  tried.length = 0;
+  await G.withModels('site', async name => { tried.push(name); return 'ok'; });
+  assert.deepEqual(tried, [MODELS[0]]);
 });
 
 test('when a model runs out for the day the next answers, and the spent one is skipped all day', async () => {
