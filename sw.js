@@ -40,6 +40,7 @@ const SHELL = [
   'js/core/ics.js',
   'js/core/sync.js',
   'js/core/vault.js',
+  'js/core/lock.js',
   'js/core/gemini.js',
   'js/core/ui.js',
   'js/cloud/firebase.js',

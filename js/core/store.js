@@ -240,6 +240,7 @@ function load(storage) {
   let ls;
   try { ls = storage || window.localStorage; ls.getItem(KEY); } catch (e) { return { state: freshState(), from: 'blocked' }; }
   const v2 = readJson(ls, KEY);
+  if (v2 && v2.locked) return { state: freshState(), from: 'locked', envelope: v2 };   /* js/core/lock.js opens it */
   if (v2) return { state: migrate(v2), from: 'v2' };
   const v1 = readJson(ls, KEY_V1);
   if (v1) return { state: migrate(v1), from: 'v1' };
@@ -247,7 +248,28 @@ function load(storage) {
 }
 
 let saveTimer = null;
+
+/* With the lock on, what is saved is encrypted with the unlocked data key.
+   Encryption is asynchronous, so writes queue up in order. */
+let lockKey = null;
+let writing = Promise.resolve(true);
+function setLockKey(k) { lockKey = k; }
+
+function saveNowAsync(state, storage) {
+  clearTimeout(saveTimer);
+  const ls = storage || window.localStorage;
+  if (!lockKey) return Promise.resolve(saveNow(state, ls));
+  const key = lockKey, snapshot = JSON.stringify(state);
+  writing = writing.then(function () { return ST.vault.seal(key, JSON.parse(snapshot)); }).then(function (env) {
+    const o = JSON.parse(env);
+    o.locked = 1;
+    try { ls.setItem(KEY, JSON.stringify(o)); return true; } catch (e) { return false; }
+  }, function () { return false; });
+  return writing;
+}
+
 function saveNow(state, storage) {
+  if (lockKey) { saveNowAsync(state, storage); return true; }
   clearTimeout(saveTimer);
   try { (storage || window.localStorage).setItem(KEY, JSON.stringify(state)); return true; }
   catch (e) { return false; }
@@ -303,7 +325,7 @@ function merge(target, incoming) {
 
 ST.store = { KEY: KEY, KEY_V1: KEY_V1, VERSION: VERSION, CADENCES: CADENCES, TEXT_SIZES: TEXT_SIZES,
              freshState: freshState, sanitise: sanitise, migrate: migrate, load: load,
-             save: save, saveNow: saveNow, cancelSave: cancelSave, wipe: wipe, bytesUsed: bytesUsed,
+             save: save, saveNow: saveNow, saveNowAsync: saveNowAsync, setLockKey: setLockKey, cancelSave: cancelSave, wipe: wipe, bytesUsed: bytesUsed,
              exportPayload: exportPayload, parseImport: parseImport, merge: merge,
              cleanSub: cleanSub, cleanCard: cleanCard, cleanExpense: cleanExpense };
 

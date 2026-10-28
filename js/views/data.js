@@ -23,6 +23,7 @@ function render() {
 
   $('#dataRoot').innerHTML = '<div class="cols"><div class="col">' +
     (ST.account ? ST.account.cardHtml() : '') +
+    (ST.lock ? ST.lock.cardHtml() : '') +
     '<section class="card"><div class="card-head"><h2>Storage</h2></div>' +
       '<dl class="kv">' +
         '<dt>Subscriptions</dt><dd>' + s.subs.length + '</dd>' +
@@ -115,6 +116,7 @@ function wire() {
     } else if (id === 'wipeBtn') {
       if (!confirm('Erase every subscription, card, expense and setting from this browser? This cannot be undone.')) return;
       S.wipe();
+      if (ST.lock) { ST.lock.clear(); S.setLockKey(null); }
       ST.app.replaceState(S.freshState());
       ST.app.refreshChrome();
       ST.app.render();
@@ -163,6 +165,7 @@ function wire() {
   });
   if (ST.sync) ST.sync.wire();
   if (ST.account) ST.account.wire();
+  if (ST.lock) ST.lock.wire();
 }
 
 ST.views = ST.views || {};

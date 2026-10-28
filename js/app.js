@@ -94,6 +94,7 @@ function applyTheme() {
   const t = app.state.settings.theme;
   document.documentElement.setAttribute('data-theme', t);
   document.documentElement.setAttribute('data-textsize', app.state.settings.textsize);
+  if (ST.lock) ST.lock.savePrefs(app.state.settings);   /* so the lock screen matches */
   $('#themeBtn').textContent = 'Theme: ' + t;
   $('#textSizeSelect').value = app.state.settings.textsize;
 }
@@ -270,38 +271,48 @@ function wire() {
 
 /* ── boot ── */
 
-const loaded = S.load();
-app.state = loaded.state;
-M.setRates(app.state.fx && app.state.fx.rates);
+function boot(loaded) {
+  app.state = loaded.state;
+  M.setRates(app.state.fx && app.state.fx.rates);
 
-app.refreshChrome();
-UI.wireModal();
-wire();
-VIEWS.forEach(function (v) { if (ST.views[v] && ST.views[v].wire) ST.views[v].wire(); });
-onRoute(false);
+  app.refreshChrome();
+  UI.wireModal();
+  wire();
+  VIEWS.forEach(function (v) { if (ST.views[v] && ST.views[v].wire) ST.views[v].wire(); });
+  onRoute(false);
 
-if (loaded.from === 'v1') {
-  /* write v2 straight away; the v1 key stays behind as a backup */
-  S.saveNow(app.state);
-  UI.toast('Your subscriptions were carried over to the new version.');
-} else if (loaded.from === 'blocked') {
-  UI.toast('Browser storage is blocked here — nothing you add will be saved.');
+  if (loaded.from === 'v1') {
+    /* write v2 straight away; the v1 key stays behind as a backup */
+    S.saveNow(app.state);
+    UI.toast('Your subscriptions were carried over to the new version.');
+  } else if (loaded.from === 'blocked') {
+    UI.toast('Browser storage is blocked here — nothing you add will be saved.');
+  }
+
+  if (ST.account) ST.account.init();   /* only does anything for someone who signed in before */
+  if (fxAgeHours() > 12) app.refreshFx(false);
+  /* a tab left open for days would otherwise keep the rates it booted with */
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') return;
+    if (fxAgeHours() > 12) app.refreshFx(false);
+    notifyDue();
+    app.render();
+  });
+  notifyDue();
 }
 
-if (ST.account) ST.account.init();   /* only does anything for someone who signed in before */
-if (fxAgeHours() > 12) app.refreshFx(false);
-/* a tab left open for days would otherwise keep the rates it booted with */
-document.addEventListener('visibilitychange', function () {
-  if (document.visibilityState !== 'visible') return;
-  if (fxAgeHours() > 12) app.refreshFx(false);
-  notifyDue();
-  app.render();
-});
+const first = S.load();
+if (first.from === 'locked' && ST.lock) {
+  /* the saved data is encrypted: nothing is shown until it is unlocked */
+  ST.lock.showLockScreen(first.envelope).then(function (raw) { boot({ state: S.migrate(raw), from: 'v2' }); });
+} else {
+  boot(first);
+  if (ST.lock && ST.lock.enabled()) ST.lock.watchIdle();
+}
 
 /* offline support — only over http(s); opening the file directly still works without it */
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   navigator.serviceWorker.register('sw.js').catch(function () { /* private mode, or blocked */ });
 }
-notifyDue();
 
 })(window.ST = window.ST || {});

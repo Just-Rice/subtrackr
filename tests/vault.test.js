@@ -66,3 +66,29 @@ test('three-way merge keeps each side’s own changes', () => {
   assert.equal(m.budgets[0].amount, 150);
   assert.deepEqual([...m.compare].sort(), ['netflix', 'spotify']);
 });
+
+test('recovery codes are long, readable and forgiving to type', () => {
+  const L = load().ST.lock;
+  const code = L.recoveryCode();
+  assert.match(code, /^[2-9A-HJ-NP-Z]{5}(-[2-9A-HJ-NP-Z]{5}){4}$/);
+  assert.notEqual(code, L.recoveryCode());
+  assert.equal(L.normaliseCode(' ' + code.toLowerCase().replace(/-/g, ' ') + ' '), code.replace(/-/g, ''));
+});
+
+test('locked saves are ciphertext, and open again with the data key', async () => {
+  const ctx = load();
+  const S = ctx.ST.store, V = ctx.ST.vault, L = ctx.ST.lock;
+  const state = S.migrate({ version: 2, settings: { region: 'US' }, subs: [{ id: 'n', name: 'Netflix', amount: 9, cur: 'USD' }] });
+  const raw = V.random(32);
+  const w = await L.wrapWithPassphrase(raw, 'ABCDE23456');
+  S.setLockKey(await V.fromRaw(raw));
+  await S.saveNowAsync(state, ctx.storage);
+  const text = ctx.storage.getItem(S.KEY);
+  assert.ok(!/Netflix/.test(text), 'nothing readable is stored');
+  const loaded = S.load(ctx.storage);
+  assert.equal(loaded.from, 'locked');
+  const back = await V.open(await V.fromRaw(await L.unwrapWithPassphrase(w, 'ABCDE23456')), loaded.envelope);
+  assert.equal(S.migrate(back).subs[0].name, 'Netflix');
+  await assert.rejects(L.unwrapWithPassphrase(w, 'WRONG23456'));
+  S.setLockKey(null);
+});
