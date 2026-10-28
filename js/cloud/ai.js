@@ -240,18 +240,20 @@ function cardHtml() {
 function turnOn() {
   const UI = ST.ui;
   const canAccount = accountPossible();
-  UI.openModal('Turn on AI analysis',
-    '<p class="sub">Choose how Subtrackr reaches Gemini. Either way you see exactly what is sent before it goes.</p>' +
-    '<div class="ai-choice"><h3>Your own Gemini API key</h3>' +
+  /* signing in is the main way where the site has Firebase; an own key is the alternative */
+  const accountChoice = canAccount ? '<div class="ai-choice"><h3>Your Google account</h3>' +
+      '<p class="muted">Sign in with Google and use this site’s shared free allowance — no key to manage.' +
+      (ST.account && ST.account.signedIn() ? '' : ' You will be asked to sign in.') + '</p>' +
+      '<button class="btn btn-primary" type="button" id="aiUseAccount">' + (ST.account && ST.account.signedIn() ? 'Use my Google account' : 'Sign in and use my Google account') + '</button></div>' : '';
+  const keyChoice = '<div class="ai-choice"><h3>' + (canAccount ? 'Or your own Gemini API key' : 'Your own Gemini API key') + '</h3>' +
       '<p class="muted">No sign-in. Free from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>. ' +
       'Requests go from this browser straight to Google, on your own allowance, and the key never leaves this browser.</p>' +
       '<form id="aiKeyForm" class="field-row" style="grid-template-columns:1fr auto"><div class="field" style="margin:0"><label class="sr-only" for="aiKey">Gemini API key</label>' +
       '<input id="aiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key"></div>' +
-      '<button class="btn btn-primary" type="submit">Use this key</button></form></div>' +
-    (canAccount ? '<div class="ai-choice"><h3>Your Google account</h3>' +
-      '<p class="muted">Sign in with Google and use this site’s shared free allowance — no key to manage.' +
-      (ST.account && ST.account.signedIn() ? '' : ' You will be asked to sign in.') + '</p>' +
-      '<button class="btn" type="button" id="aiUseAccount">' + (ST.account && ST.account.signedIn() ? 'Use my Google account' : 'Sign in and use my Google account') + '</button></div>' : '') +
+      '<button class="btn' + (canAccount ? '' : ' btn-primary') + '" type="submit">Use this key</button></form></div>';
+  UI.openModal('Turn on AI analysis',
+    '<p class="sub">Choose how Subtrackr reaches Gemini. Either way you see exactly what is sent before it goes.</p>' +
+    accountChoice + keyChoice +
     '<div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button></div>');
   UI.$('#aiKeyForm').addEventListener('submit', function (e) {
     e.preventDefault();

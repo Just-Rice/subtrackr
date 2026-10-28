@@ -46,13 +46,15 @@ function skip(scope, name, until) {
 }
 
 /* what a failure says about its model: used up for the day, busy for the
-   minute (or overloaded), not available, or null for a real failure that
-   another model would not fix */
+   minute (or overloaded), not available, no reply at all ('network': offline,
+   or a gateway error that came back without CORS headers), or null for a real
+   failure that another model would not fix */
 function modelProblem(err) {
   const msg = String((err && err.message) || err);
   if (/\b429\b|RESOURCE_EXHAUSTED|quota|exhausted/i.test(msg)) return /per.?day|PerDay|daily/i.test(msg) ? 'day' : 'minute';
   if (/\b404\b|NOT_FOUND|is not found|not supported for generateContent/i.test(msg)) return 'missing';
   if (/\b50[03]\b|UNAVAILABLE|overloaded|high demand/i.test(msg)) return 'minute';
+  if (/failed to fetch|fetch failed|NetworkError|Load failed/i.test(msg)) return 'network';
   return null;
 }
 
@@ -70,7 +72,9 @@ async function withModels(scope, request, opts) {
       const problem = modelProblem(err);
       if (!problem) throw err;
       last = err;
-      skip(scope, name, problem === 'day' ? pacificDay(now())
+      /* no reply says nothing lasting about the model (and offline, every
+         model fails the same way), so it is only passed over this once */
+      if (problem !== 'network') skip(scope, name, problem === 'day' ? pacificDay(now())
         : now() + (problem === 'minute' ? 60 : 6 * 3600) * 1000);
     }
   }
