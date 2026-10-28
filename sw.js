@@ -7,7 +7,7 @@
  * index.html so a new script cannot be left out.
  */
 
-const VERSION = 'subtrackr-v2-1';
+const VERSION = 'subtrackr-v2-2';
 
 const SHELL = [
   './',
@@ -22,6 +22,7 @@ const SHELL = [
   'js/data/catalog.js',
   'js/data/spending.js',
   'js/data/cards.js',
+  'js/data/logos.js',
   'js/core/util.js',
   'js/core/money.js',
   'js/core/dates.js',

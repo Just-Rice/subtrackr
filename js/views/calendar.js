@@ -114,7 +114,7 @@ function renderDay(list) {
   }
   host.innerHTML = head + '<ul class="rows">' + list.map(function (e, i) {
     const kind = KINDS.filter(function (k) { return k.id === e.kind; })[0];
-    return '<li class="row" style="padding-left:0;padding-right:0">' + UI.dot(e.color) +
+    return '<li class="row" style="padding-left:0;padding-right:0">' + UI.eventLogo(st(), e.ref, e.color, 26) +
       '<span class="row-main"><span class="row-title">' + esc(e.title) + '</span>' +
       '<span class="row-sub">' + esc(kind ? kind.name.replace(/s$/, '') : '') + ' · ' + esc(e.detail || '') + '</span></span>' +
       '<span class="row-amt">' + evAmount(e) + '</span>' +

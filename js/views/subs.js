@@ -92,7 +92,7 @@ function renderSubList() {
     const next = L.nextCharge(s);
     const grp = GROUP_BY_ID[s.group];
     return '<article class="sub-card' + (s.active ? '' : ' paused') + '" data-id="' + esc(s.id) + '">' +
-      '<div class="sub-top">' + UI.logo(s.name, s.color) +
+      '<div class="sub-top">' + UI.logo(s.name, s.color, 0, UI.subLogoKey(s)) +
         '<div><div class="sub-name">' + esc(s.name) + '</div>' +
         '<div class="sub-tier">' + esc(s.tierName || 'Custom') + (grp ? ' · ' + esc(grp.name) : '') + '</div></div>' +
       '</div>' +
@@ -251,7 +251,7 @@ function serviceCard(svc) {
   }
   const tracked = st().subs.some(function (s) { return s.serviceId === svc.id; });
   return '<article class="svc-card" data-svc="' + esc(svc.id) + '">' +
-    '<div class="svc-top">' + UI.logo(svc.name, svc.color, 32) +
+    '<div class="svc-top">' + UI.logo(svc.name, svc.color, 32, svc.id) +
       '<div><div class="svc-name">' + esc(svc.name) + (tracked ? ' <span class="tag tag-good">Tracked</span>' : '') + '</div>' +
       '<div class="svc-company">' + esc(svc.company) + ' · ' + U.plural(svc.tiers.length, 'tier') + '</div></div>' +
     '</div>' +
@@ -370,7 +370,7 @@ function renderCompare() {
 
   const detail = svcs.map(function (s) {
     const grp = GROUP_BY_ID[s.group];
-    return '<section class="cmp-svc"><div class="cmp-svc-head">' + UI.logo(s.name, s.color, 32) +
+    return '<section class="cmp-svc"><div class="cmp-svc-head">' + UI.logo(s.name, s.color, 32, s.id) +
       '<div><h2>' + esc(s.name) + marketTag(s) + '</h2><div class="svc-company">' + esc(s.company) +
       (grp ? ' · ' + esc(grp.name) : '') +
       (s.site ? ' · <a href="https://' + esc(s.site) + '" target="_blank" rel="noopener">' + esc(s.site) + '</a>' : '') + '</div></div>' +
@@ -698,7 +698,7 @@ function wire() {
     if (!hits.length) { box.hidden = true; return; }
     box.innerHTML = hits.map(function (s) {
       const here = P.soldHere(s, reg());
-      return '<button type="button" data-pick="' + esc(s.id) + '">' + UI.logo(s.name, s.color, 24) +
+      return '<button type="button" data-pick="' + esc(s.id) + '">' + UI.logo(s.name, s.color, 24, s.id) +
         '<span>' + esc(s.name) + marketTag(s) +
         (here ? '' : ' <span class="est-tag">not in ' + esc(UI.region().name) + '</span>') + '</span>' +
         '<span class="muted" style="margin-left:auto">' + esc(s.company) + '</span></button>';

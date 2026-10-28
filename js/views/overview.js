@@ -70,7 +70,7 @@ function render() {
     '<a class="link-btn" href="#/calendar">See all in Calendar ›</a></div>' +
     (up.length ? '<ul class="rows">' + up.map(function (e, i) {
       return '<li class="row' + (i >= 3 ? ' row-extra' : '') + '"><span class="row-when">' + esc(D.fmtDate(e.date, { weekday: 'short', day: 'numeric' })) + '</span>' +
-        UI.dot(e.color) + '<span class="row-main"><span class="row-title">' + esc(e.title) + '</span></span>' +
+        UI.eventLogo(s, e.ref, e.color, 26) + '<span class="row-main"><span class="row-title">' + esc(e.title) + '</span></span>' +
         '<span class="row-amt">' + UI.usd(e.usd) + '</span></li>';
     }).join('') + '</ul>'
     : UI.empty('No charges dated in the next 60 days. Set a next-payment date on a subscription to see it here.')) +

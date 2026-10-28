@@ -91,14 +91,74 @@ function wireModal() {
 
 /* ── markup builders ── */
 
-function logo(name, color, size) {
+/* the bundled logo for a catalogue service id or a card issuer (js/data/logos.js) */
+function logoSrc(key) {
+  if (!key) return '';
+  if (typeof LOGOS !== 'undefined' && Object.prototype.hasOwnProperty.call(LOGOS, key)) return LOGOS[key];
+  if (typeof ISSUER_LOGOS !== 'undefined' && Object.prototype.hasOwnProperty.call(ISSUER_LOGOS, key)) return ISSUER_LOGOS[key];
+  return '';
+}
+
+/* a tracked subscription's logo key: its catalogue service, or for a custom
+   one, the service it is named after ("Verizon" → Verizon myPlan, "Xfinity" →
+   Xfinity Internet), preferring one in the same category */
+function subLogoKey(sub) {
+  if (sub.serviceId && SERVICE_BY_ID[sub.serviceId]) return sub.serviceId;
+  const name = String(sub.name || '').trim().toLowerCase();
+  if (!name) return '';
+  function score(s) {
+    const n = s.name.toLowerCase(), co = s.company.toLowerCase();
+    const m = n === name ? 3 : (n.indexOf(name + ' ') === 0 || co === name) ? 2 : 0;
+    return m ? m + (s.group === sub.group ? 1 : 0) : 0;
+  }
+  let best = null, top = 0;
+  CATALOG.forEach(function (s) { const v = score(s); if (v > top) { top = v; best = s; } });
+  return best ? best.id : '';
+}
+
+function initialsTile(name, color, size) {
   const s = size ? ' style="width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size * 0.36) + 'px;background:' + U.safeColor(color) + '"'
                  : ' style="background:' + U.safeColor(color) + '"';
   return '<span class="logo" aria-hidden="true"' + s + '>' + U.esc(U.initials(name)) + '</span>';
 }
 
+/* the real logo on a white tile when one is bundled, the coloured initials otherwise */
+function logo(name, color, size, key) {
+  const src = logoSrc(key);
+  if (!src) return initialsTile(name, color, size);
+  return '<span class="logo logo-img" aria-hidden="true" data-name="' + U.esc(name) + '" data-color="' + U.esc(U.safeColor(color)) + '"' +
+    (size ? ' style="width:' + size + 'px;height:' + size + 'px"' : '') + '>' +
+    '<img src="' + U.esc(src) + '" alt="" loading="lazy" decoding="async"></span>';
+}
+
+/* a logo file that fails to load (cleared cache while offline, say) falls back to initials */
+document.addEventListener('error', function (e) {
+  const img = e.target;
+  const parent = img && img.tagName === 'IMG' && img.parentNode && img.parentNode.classList ? img.parentNode : null;
+  if (parent && parent.classList.contains('cc-badge')) { parent.remove(); return; }
+  const tile = parent && parent.classList.contains('logo-img') ? parent : null;
+  if (!tile) return;
+  const size = parseInt(tile.style.width, 10) || 0;
+  tile.outerHTML = initialsTile(tile.getAttribute('data-name') || '', tile.getAttribute('data-color'), size);
+}, true);
+
 function dot(color) {
   return '<span class="dot" aria-hidden="true" style="background:' + U.safeColor(color) + '"></span>';
+}
+
+/* the small logo for a calendar or list entry: the subscription's own, the card
+   issuer's, or the coloured dot when there is none */
+function eventLogo(state, ref, color, size) {
+  let key = '', name = '';
+  if (ref && ref.type === 'sub') {
+    const s = state.subs.filter(function (x) { return x.id === ref.id; })[0];
+    if (s) { key = subLogoKey(s); name = s.name; }
+  } else if (ref && ref.type === 'card') {
+    const c = state.cards.filter(function (x) { return x.id === ref.id; })[0];
+    const d = c && c.cardId && typeof CARD_BY_ID !== 'undefined' ? CARD_BY_ID[c.cardId] : null;
+    if (d) { key = d.issuer; name = d.issuer; }
+  }
+  return logoSrc(key) ? logo(name, color, size || 24, key) : dot(color);
 }
 
 function stat(label, valueHtml, note, cls) {
@@ -157,7 +217,8 @@ function download(filename, text, type) {
 
 ST.ui = { $: $, $$: $$, settings: settings, region: region, usd: usd, amt: amt, toast: toast,
           openModal: openModal, closeModal: closeModal, markDirty: markDirty, wireModal: wireModal,
-          logo: logo, dot: dot, stat: stat, empty: empty, bar: bar, optionList: optionList,
+          logo: logo, logoSrc: logoSrc, subLogoKey: subLogoKey, eventLogo: eventLogo,
+          dot: dot, stat: stat, empty: empty, bar: bar, optionList: optionList,
           currencyOptions: currencyOptions, spendCatOptions: spendCatOptions, download: download };
 
 })(window.ST = window.ST || {});

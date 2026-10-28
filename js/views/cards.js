@@ -28,8 +28,11 @@ const SHORT = { 'American Express': 'Amex', 'Capital One': 'Cap One', 'Wells Far
                 'Barclaycard': 'Barclays', 'HDFC Bank': 'HDFC', 'Axis Bank': 'Axis', 'ICICI Bank': 'ICICI', 'SBI Card': 'SBI' };
 function short(issuer) { return SHORT[issuer] || String(issuer || '').split(' ')[0]; }
 
-function chip(color, label) {
-  return '<span class="cc-chip" aria-hidden="true" style="background:' + U.safeColor(color) + '">' + esc(label || '') + '</span>';
+/* the card in its colour, with the issuer's logo on a white badge when one is bundled */
+function chip(color, label, issuer) {
+  const src = UI.logoSrc(issuer);
+  return '<span class="cc-chip" aria-hidden="true" style="background:' + U.safeColor(color) + '">' +
+    (src ? '<span class="cc-badge"><img src="' + esc(src) + '" alt="" loading="lazy" decoding="async"></span>' : esc(label || '')) + '</span>';
 }
 
 const CADENCE_LABEL = { monthly: 'a month', quarterly: 'a quarter', semiannual: 'every 6 months', yearly: 'a calendar year', cardyear: 'a card-year', once: 'once' };
@@ -111,7 +114,7 @@ function cardBox(c) {
   const auto = v.credits.filter(function (x) { return x.credit.auto; });
 
   return '<section class="card cardbox' + (c.active ? '' : ' paused') + (focusId === c.id ? ' focus' : '') + '" id="card-' + esc(c.id) + '" data-card="' + esc(c.id) + '">' +
-    '<div class="cardbox-head">' + chip(c.color, short(c.issuer)) +
+    '<div class="cardbox-head">' + chip(c.color, short(c.issuer), c.issuer) +
       '<div class="cardbox-title"><h2>' + esc(c.name) + (c.active ? '' : ' <span class="tag">Closed</span>') + '</h2>' +
         '<span class="muted">' + esc(c.issuer) + ' · ' + (c.fee ? money(c.fee, c, { dec: 0 }) + ' a year' : 'no annual fee') +
         (next ? ' · renews ' + esc(D.fmtDate(next, { day: 'numeric', month: 'short', year: 'numeric' })) : ' · no fee date set') + '</span></div>' +
@@ -189,7 +192,7 @@ function renderBrowse() {
     '<div class="sub-list">' + list.map(function (d) {
       const yr = creditsYear(d);
       return '<article class="svc-card">' +
-        '<div class="svc-top">' + chip(d.color, short(d.issuer)) +
+        '<div class="svc-top">' + chip(d.color, short(d.issuer), d.issuer) +
           '<div><div class="svc-name">' + esc(d.name) + (held[d.id] ? ' <span class="tag tag-good">Yours</span>' : '') +
             (d.closed ? ' <span class="tag">Closed to new applicants</span>' : '') + '</div>' +
           '<div class="svc-company">' + esc(d.issuer) + ' · ' + (d.fee ? M.fmtMoney(d.fee, d.cur, { dec: 0 }) + ' a year' + (d.firstYearFree ? ', first year free' : '') : 'no annual fee') + '</div></div>' +
@@ -249,7 +252,7 @@ function openForm(card, catalogId) {
   const defaultDeadline = draft.openedAt && bonusOffer ? D.addDays(addMonthsStr(draft.openedAt, bonusOffer.months), -1) : '';
 
   const body = '<form id="cardForm" novalidate>' +
-    (d ? '<p class="sub" style="margin-bottom:14px">' + chip(d.color, short(d.issuer)) + ' ' + esc(d.issuer) + ' · ' + esc(earnSummary(d)) + '</p>' : '') +
+    (d ? '<p class="sub" style="margin-bottom:14px">' + chip(d.color, short(d.issuer), d.issuer) + ' ' + esc(d.issuer) + ' · ' + esc(earnSummary(d)) + '</p>' : '') +
     '<div class="field-row">' +
       '<div class="field"><label for="cName">Name</label><input id="cName" type="text" required value="' + esc(draft.name) + '" placeholder="' + (d ? esc(d.name) : 'e.g. My travel card') + '"></div>' +
       '<div class="field"><label for="cIssuer">Issuer</label><input id="cIssuer" type="text" value="' + esc(draft.issuer) + '"></div>' +
