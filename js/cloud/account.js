@@ -98,6 +98,41 @@ let pushTimer = null;
 let running = null;
 const listeners = [];
 
+let keyRaw = null;        /* its raw bits, kept for this session only, so it can be re-stored sealed */
+const SEALED_KEY = 'subtrackr.cloud.key';
+
+/* The sync key stays on this device so the passphrase is typed once. Without
+   the lock it is a non-extractable key in IndexedDB; with the lock on it is
+   stored sealed under the lock's data key instead, so it can't be used to
+   step around the lock. */
+function storeKey() {
+  const name = 'sync:' + user.uid;
+  if (ST.lock && ST.lock.enabled() && ST.lock.unlocked()) {
+    if (!keyRaw) return ST.vault.forget(name);
+    return ST.lock.sealBytes(keyRaw).then(function (env) {
+      localStorage.setItem(SEALED_KEY, JSON.stringify({ uid: user.uid, env: env }));
+      return ST.vault.forget(name);
+    });
+  }
+  try { localStorage.removeItem(SEALED_KEY); } catch (e) { /* storage blocked */ }
+  return ST.vault.remember(name, key);
+}
+function recallKey() {
+  if (ST.lock && ST.lock.enabled()) {
+    let rec = null;
+    try { rec = JSON.parse(localStorage.getItem(SEALED_KEY)); } catch (e) { /* none */ }
+    if (!rec || rec.uid !== user.uid || !ST.lock.unlocked()) return Promise.resolve(null);
+    return ST.lock.openBytes(rec.env).then(function (raw) { keyRaw = raw; return ST.vault.fromRaw(raw); }, function () { return null; });
+  }
+  return ST.vault.recall('sync:' + user.uid);
+}
+function forgetKey(uid) {
+  key = null; keyRaw = null;
+  try { localStorage.removeItem(SEALED_KEY); } catch (e) { /* storage blocked */ }
+  return uid ? ST.vault.forget('sync:' + uid) : Promise.resolve();
+}
+if (ST.lock) ST.lock.onChange(function () { return user && key ? storeKey() : null; });
+
 function set(p, msg) { phase = p; message = msg || ''; listeners.forEach(function (fn) { fn(); }); }
 function onChange(fn) { listeners.push(fn); }
 function hasData(s) { return !!(s.subs.length || s.cards.length || s.expenses.length || s.budgets.length); }
@@ -105,9 +140,11 @@ function docRef() { return fb.store.doc(fb.db, 'users', user.uid); }
 
 /* ── sign-in ── */
 
+let started = null;
 function start() {
-  return ST.firebase.load().then(function (f) {
+  started = started || ST.firebase.load().then(function (f) {
     fb = f;
+    watch();
     return new Promise(function (resolve) {
       let first = true;
       fb.auth.onAuthStateChanged(fb.authInstance, function (u) {
@@ -119,13 +156,15 @@ function start() {
           writeMeta(Object.assign(readMeta(), { uid: u.uid, name: u.displayName || '', email: u.email || '' }));
           if (was !== u.uid) afterSignIn();
         } else {
-          key = null; salt = null;
+          key = null; keyRaw = null; salt = null;
           set('signed-out');
         }
         if (first) { first = false; resolve(u); }
       });
     });
   });
+  started.catch(function () { started = null; });   /* offline: let a later try load it again */
+  return started;
 }
 
 /* boot: only reload the SDK for someone who signed in before */
@@ -133,6 +172,13 @@ function init() {
   if (!ST.firebase.available || !readMeta().uid) return;
   set('loading');
   start().catch(function () { set('error', 'Could not reach your account. Check the connection; this device keeps working as usual.'); });
+}
+
+/* pull when the app comes back to the front, push before it goes away */
+let watching = false;
+function watch() {
+  if (watching) return;
+  watching = true;
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') syncNow();
     else if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; syncNow(); }
@@ -161,9 +207,9 @@ function signIn() {
 function signOut() {
   clearTimeout(pushTimer);
   const uid = user && user.uid;
-  return (uid ? ST.vault.forget('sync:' + uid) : Promise.resolve()).then(function () {
+  return forgetKey(uid).then(function () {
     writeMeta({});
-    key = null; salt = null;
+    salt = null;
     return fb ? fb.auth.signOut(fb.authInstance) : null;
   }).then(function () { set('signed-out'); });
 }
@@ -171,7 +217,7 @@ function signOut() {
 function afterSignIn() {
   const m = readMeta();
   if (m.syncOff) { set('sync-off'); return; }
-  ST.vault.recall('sync:' + user.uid).then(function (k) {
+  recallKey().then(function (k) {
     if (k) { key = k; salt = m.salt || null; syncNow(); return; }
     /* no key here yet: a passphrase to enter if there is a copy, or sync to turn on */
     return remoteDoc().then(function (remote) { set(remote ? 'needs-key' : 'sync-off'); });
@@ -221,8 +267,7 @@ function syncNow() {
     if (remote && remote.salt !== salt) {
       /* the passphrase was changed on another device */
       return ST.vault.open(key, remote.blob).then(function () { salt = remote.salt; return what; }, function () {
-        key = null;
-        return ST.vault.forget('sync:' + user.uid).then(function () { set('needs-key', 'Your sync passphrase was changed on another device. Enter the new one.'); return 'stop'; });
+        return forgetKey(user.uid).then(function () { set('needs-key', 'Your sync passphrase was changed on another device. Enter the new one.'); return 'stop'; });
       });
     }
     return what;
@@ -300,11 +345,15 @@ function setUpKey() {
     const creating = !remote;
     return ST.sync.askPassphrase(creating ? 'Choose a sync passphrase' : 'Your sync passphrase', creating).then(function (pass) {
       const s = creating ? ST.vault.b64(ST.vault.random(16)) : remote.salt;
-      return ST.vault.fromPassphrase(pass, ST.vault.unb64(s), creating ? ST.vault.ITER : remote.iter).then(function (k) {
+      let raw;
+      return ST.vault.rawFromPassphrase(pass, ST.vault.unb64(s), creating ? ST.vault.ITER : remote.iter).then(function (r) {
+        raw = r;
+        return ST.vault.fromRaw(r);
+      }).then(function (k) {
         return (creating ? Promise.resolve() : ST.vault.open(k, remote.blob)).then(function () {
-          key = k; salt = s;
+          key = k; keyRaw = raw; salt = s;
           writeMeta(Object.assign(readMeta(), { syncOff: false, salt: s }));
-          return ST.vault.remember('sync:' + user.uid, k);
+          return storeKey();
         }, function () { throw new Error('That passphrase does not open the copy in your account.'); });
       });
     });
@@ -314,8 +363,7 @@ function setUpKey() {
 function turnSyncOff() {
   clearTimeout(pushTimer);
   writeMeta(Object.assign(readMeta(), { syncOff: true }));
-  key = null;
-  return ST.vault.forget('sync:' + user.uid).then(function () { set('sync-off'); });
+  return forgetKey(user.uid).then(function () { set('sync-off'); });
 }
 
 function deleteCloudCopy() {

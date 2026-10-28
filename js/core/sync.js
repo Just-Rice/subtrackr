@@ -75,6 +75,29 @@ function saveLocal(o) {
   try { localStorage.setItem(LOCAL, JSON.stringify(o)); } catch (e) { /* storage blocked */ }
 }
 
+/* a remembered GitHub token: plain, or sealed under the passkey lock while it is on */
+function storedToken() {
+  const l = local();
+  if (l.token) return Promise.resolve(l.token);
+  if (l.tokenEnc && ST.lock && ST.lock.unlocked()) return ST.lock.openString(l.tokenEnc);
+  return Promise.resolve('');
+}
+function remember(gistId, token) {
+  const o = { gistId: gistId };
+  if (!token) { saveLocal(o); return Promise.resolve(); }
+  if (ST.lock && ST.lock.enabled() && ST.lock.unlocked()) {
+    return ST.lock.sealString(token).then(function (env) { o.tokenEnc = env; saveLocal(o); });
+  }
+  o.token = token;
+  saveLocal(o);
+  return Promise.resolve();
+}
+/* re-store a remembered token when the lock is turned on or off (registered in wire(): lock.js loads after this file) */
+function reseal() {
+  const l = local();
+  return l.token || l.tokenEnc ? storedToken().then(function (t) { return remember(l.gistId, t); }) : null;
+}
+
 /* ── GitHub Gist ── */
 
 function gistRequest(method, path, token, body) {
@@ -123,8 +146,9 @@ function cardHtml() {
     '<details class="cardbox-more" style="margin-top:12px"' + (l.gistId ? ' open' : '') + '><summary>Sync through a private GitHub Gist</summary>' +
       '<p class="muted">Needs a GitHub token with only the <strong>gist</strong> scope. Push from one device, pull on another.</p>' +
       '<div class="field-row"><div class="field"><label for="gistId">Gist ID</label><input id="gistId" type="text" value="' + esc(l.gistId || '') + '" placeholder="Created on first push"></div>' +
-      '<div class="field"><label for="gistToken">Token</label><input id="gistToken" type="password" autocomplete="off" value="' + esc(l.token || '') + '"></div></div>' +
-      '<label class="check"><input type="checkbox" id="gistRemember"' + (l.token ? ' checked' : '') + '> Remember the token on this device</label>' +
+      '<div class="field"><label for="gistToken">Token</label><input id="gistToken" type="password" autocomplete="off" value="' + esc(l.token || '') + '"' +
+        (l.tokenEnc ? ' placeholder="Saved on this device, encrypted"' : '') + '></div></div>' +
+      '<label class="check"><input type="checkbox" id="gistRemember"' + (l.token || l.tokenEnc ? ' checked' : '') + '> Remember the token on this device</label>' +
       '<div class="row-btns"><button class="btn" type="button" id="gistPush">Push</button><button class="btn" type="button" id="gistPull">Pull</button></div>' +
     '</details></section>';
 }
@@ -151,6 +175,7 @@ function askPassphrase(title, confirmTwice) {
 
 function wire() {
   const UI = ST.ui;
+  if (ST.lock) ST.lock.onChange(reseal);
   function fail(err) { if (err && err.message !== 'cancelled') UI.toast(err.message || 'That did not work.'); }
   UI.$('#dataRoot').addEventListener('click', function (e) {
     const id = e.target.closest('button') && e.target.closest('button').id;
@@ -162,22 +187,24 @@ function wire() {
       }).catch(fail);
     } else if (id === 'gistPush' || id === 'gistPull') {
       const gistId = UI.$('#gistId').value.trim();
-      const token = UI.$('#gistToken').value.trim();
-      if (!token) { UI.toast('Add a GitHub token first.'); return; }
-      if (id === 'gistPull' && !gistId) { UI.toast('Add the gist ID to pull from.'); return; }
-      const remember = UI.$('#gistRemember').checked;
-      askPassphrase(id === 'gistPush' ? 'Encrypt and push' : 'Pull and decrypt', id === 'gistPush' && !gistId).then(function (p) {
-        UI.toast(id === 'gistPush' ? 'Pushing…' : 'Pulling…');
-        return id === 'gistPush'
-          ? push(ST.app.state, p, gistId, token).then(function (newId) {
-              saveLocal({ gistId: newId, token: remember ? token : undefined });
-              UI.$('#gistId').value = newId;
-              UI.toast('Pushed — encrypted.');
-            })
-          : pull(p, gistId, token).then(function (incoming) {
-              saveLocal({ gistId: gistId, token: remember ? token : undefined });
-              ST.views.data.confirmImport(incoming);
-            });
+      const typed = UI.$('#gistToken').value.trim();
+      const keep = UI.$('#gistRemember').checked;
+      (typed ? Promise.resolve(typed) : storedToken()).then(function (token) {
+        if (!token) { UI.toast('Add a GitHub token first.'); return; }
+        if (id === 'gistPull' && !gistId) { UI.toast('Add the gist ID to pull from.'); return; }
+        return askPassphrase(id === 'gistPush' ? 'Encrypt and push' : 'Pull and decrypt', id === 'gistPush' && !gistId).then(function (p) {
+          UI.toast(id === 'gistPush' ? 'Pushing…' : 'Pulling…');
+          return id === 'gistPush'
+            ? push(ST.app.state, p, gistId, token).then(function (newId) {
+                return remember(newId, keep ? token : '').then(function () {
+                  UI.$('#gistId').value = newId;
+                  UI.toast('Pushed — encrypted.');
+                });
+              })
+            : pull(p, gistId, token).then(function (incoming) {
+                return remember(gistId, keep ? token : '').then(function () { ST.views.data.confirmImport(incoming); });
+              });
+        });
       }).catch(fail);
     }
   });

@@ -110,7 +110,7 @@ function finish(rec, raw) {
     saveRecord(rec);
     ST.store.setLockKey(k);
     try { localStorage.removeItem(ST.store.KEY_V1); } catch (e) { /* the old unencrypted backup must not outlive the lock */ }
-    return ST.store.saveNowAsync(ST.app.state).then(function () { return code; });
+    return ST.store.saveNowAsync(ST.app.state).then(function () { return runHooks(true); }).then(function () { return code; });
   });
 }
 
@@ -132,13 +132,28 @@ function enablePassphrase(pass) {
 }
 
 function disable() {
-  ST.store.setLockKey(null);
-  dataKey = null;
+  /* the lock is off from here on, but the data key stays in memory until the
+     other secrets sealed under it have been opened and stored plainly again */
   localStorage.removeItem(LOCK);
-  return ST.store.saveNowAsync(ST.app.state);
+  ST.store.setLockKey(null);
+  return ST.store.saveNowAsync(ST.app.state).then(function () { return runHooks(false); })
+    .then(function () { dataKey = null; });
 }
 
 function clear() { dataKey = null; try { localStorage.removeItem(LOCK); } catch (e) { /* storage blocked */ } }
+
+/* Other secrets this device keeps (the sync key, a Gemini API key, a GitHub
+   token) are stored sealed under the data key while the lock is on, so the
+   lock can't be stepped around by reading them. Their owners register here
+   and re-store them when the lock is turned on or off. */
+const hooks = [];
+function onChange(fn) { hooks.push(fn); }
+function runHooks(on) { return Promise.all(hooks.map(function (fn) { return Promise.resolve(fn(on)).catch(function () { /* best effort */ }); })); }
+function unlocked() { return !!dataKey; }
+function sealBytes(bytes) { return ST.vault.sealBytes(dataKey, bytes); }
+function openBytes(env) { return ST.vault.openBytes(dataKey, env); }
+function sealString(str) { return sealBytes(new TextEncoder().encode(str)); }
+function openString(env) { return openBytes(env).then(function (b) { return new TextDecoder().decode(b); }); }
 
 /* ── unlocking ── */
 
@@ -315,7 +330,8 @@ function wire() {
 }
 
 ST.lock = { enabled: enabled, showLockScreen: showLockScreen, cardHtml: cardHtml, wire: wire, clear: clear,
-            savePrefs: savePrefs, watchIdle: watchIdle,
+            savePrefs: savePrefs, watchIdle: watchIdle, onChange: onChange, unlocked: unlocked,
+            sealBytes: sealBytes, openBytes: openBytes, sealString: sealString, openString: openString,
             /* for tests */ recoveryCode: recoveryCode, normaliseCode: normaliseCode,
             wrapWithPassphrase: wrapWithPassphrase, unwrapWithPassphrase: unwrapWithPassphrase };
 

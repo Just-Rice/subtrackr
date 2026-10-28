@@ -28,7 +28,30 @@ const KINDS = {
 
 function settings() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
 function saveSettings(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { /* storage blocked */ } }
-function enabled() { const s = settings(); return !!(s.on && (s.mode === 'key' ? s.key : s.mode === 'account')); }
+function enabled() { const s = settings(); return !!(s.on && (s.mode === 'key' ? (s.key || s.keyEnc) : s.mode === 'account')); }
+
+/* the API key: plain in this browser, or sealed under the passkey lock's data
+   key while the lock is on (js/core/lock.js), so the lock can't be stepped round */
+function apiKey() {
+  const s = settings();
+  if (s.key) return Promise.resolve(s.key);
+  if (s.keyEnc && ST.lock && ST.lock.unlocked()) return ST.lock.openString(s.keyEnc);
+  return Promise.reject(new Error('Your Gemini key could not be read. Turn AI analysis off and on again.'));
+}
+function storeApiKey(key) {
+  const s = settings();
+  delete s.key; delete s.keyEnc;
+  if (ST.lock && ST.lock.enabled() && ST.lock.unlocked()) {
+    return ST.lock.sealString(key).then(function (env) { s.keyEnc = env; saveSettings(s); });
+  }
+  s.key = key;
+  saveSettings(s);
+  return Promise.resolve();
+}
+if (ST.lock) ST.lock.onChange(function () {
+  const s = settings();
+  return s.mode === 'key' && (s.key || s.keyEnc) ? apiKey().then(storeApiKey) : null;
+});
 function accountPossible() { return !!(ST.firebase && ST.firebase.available && ST.firebase.hasAppCheck); }
 
 /* ── requests ── */
@@ -73,7 +96,7 @@ function describeAccountError(err) {
 
 function request(prompt, json) {
   const s = settings();
-  return s.mode === 'key' ? viaKey(s.key, prompt, json) : viaAccount(prompt, json);
+  return s.mode === 'key' ? apiKey().then(function (k) { return viaKey(k, prompt, json); }) : viaAccount(prompt, json);
 }
 
 /* ── showing what is sent, then the answer ── */
@@ -237,7 +260,9 @@ function turnOn() {
     const btn = UI.$('#aiKeyForm button');
     btn.disabled = true; btn.textContent = 'Checking…';
     viaKey(key, 'Reply with the single word OK.').then(function () {
-      saveSettings(Object.assign(settings(), { on: true, mode: 'key', key: key }));
+      saveSettings(Object.assign(settings(), { on: true, mode: 'key' }));
+      return storeApiKey(key);
+    }).then(function () {
       UI.closeModal(true);
       ST.app.render();
       UI.toast('AI analysis is on, with your own key.');
@@ -250,7 +275,9 @@ function turnOn() {
   if (acct) acct.addEventListener('click', function () {
     (ST.account.signedIn() ? Promise.resolve() : ST.account.signIn()).then(function () {
       if (!ST.account.signedIn()) return;
-      saveSettings(Object.assign(settings(), { on: true, mode: 'account', key: '' }));
+      const s = settings();
+      delete s.key; delete s.keyEnc;
+      saveSettings(Object.assign(s, { on: true, mode: 'account' }));
       UI.closeModal(true);
       ST.app.render();
       UI.toast('AI analysis is on, through your Google account.');

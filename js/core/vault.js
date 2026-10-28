@@ -38,6 +38,13 @@ function fromPassphrase(passphrase, salt, iter) {
   });
 }
 
+/* the same key as raw bits, for when it has to be stored sealed under another key */
+function rawFromPassphrase(passphrase, salt, iter) {
+  return crypto.subtle.importKey('raw', te.encode(passphrase), 'PBKDF2', false, ['deriveBits']).then(function (base) {
+    return crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt, iterations: iter || ITER, hash: 'SHA-256' }, base, 256);
+  }).then(function (bits) { return new Uint8Array(bits); });
+}
+
 /* high-entropy secret (a passkey's PRF output) → AES key */
 function fromSecret(secret, info) {
   return crypto.subtle.importKey('raw', secret, 'HKDF', false, ['deriveKey']).then(function (base) {
@@ -95,7 +102,7 @@ function recall(name) { return tx('readonly', function (s) { return s.get(name);
 function forget(name) { return tx('readwrite', function (s) { return s.delete(name); }).catch(function () { return null; }); }
 
 ST.vault = { ITER: ITER, b64: b64, unb64: unb64, random: random,
-             fromPassphrase: fromPassphrase, fromSecret: fromSecret, fromRaw: fromRaw,
+             fromPassphrase: fromPassphrase, rawFromPassphrase: rawFromPassphrase, fromSecret: fromSecret, fromRaw: fromRaw,
              seal: seal, open: open, sealBytes: sealBytes, openBytes: openBytes,
              remember: remember, recall: recall, forget: forget };
 
