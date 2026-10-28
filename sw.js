@@ -7,7 +7,7 @@
  * index.html so a new script cannot be left out.
  */
 
-const VERSION = 'subtrackr-v2-3';
+const VERSION = 'subtrackr-v3-1';
 
 const SHELL = [
   './',
