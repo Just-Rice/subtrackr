@@ -98,11 +98,12 @@ the same way. No account or server is involved.
 about your money**, **keep-or-cancel advice** on each card, and **sorting statement
 lines** no rule could place. Two ways to reach Gemini:
 
-- **your own Gemini API key** — free from [Google AI Studio](https://aistudio.google.com/apikey),
-  no sign-in; requests go from your browser straight to Google on your own allowance,
-  and the key stays in your browser;
-- **your Google account** — signed in, through Firebase AI Logic on the site's shared
-  free allowance.
+- **your Google account**, the main way — signed in, through Firebase AI Logic on the
+  site's shared free allowance;
+- **or your own Gemini API key** — free from [Google AI Studio](https://aistudio.google.com/apikey),
+  for anyone who'd rather not sign in (and the only way on a copy without Firebase);
+  requests go from your browser straight to Google on your own allowance, and the key
+  stays in your browser.
 
 Every request tries Gemini 3.8 Flash first and moves down the list in
 `js/data/gemini-models.js` (nothing older than the 3.1 generation) whenever a model's
