@@ -430,7 +430,7 @@ function render(route) {
   $('#cardsRoot').innerHTML =
     '<div class="view-head"><div><p class="eyebrow">' + (pf.cards.length ? U.plural(pf.cards.length, 'active card') + ' · values for this card-year' : 'What your cards pay you back') + '</p>' +
       '<h1 id="h-cards">Cards</h1></div>' +
-      '<div class="view-actions"><button class="btn btn-ai" type="button" data-ai-action="cards" hidden>✦ Keep or cancel?</button>' +
+      '<div class="view-actions"><button class="btn btn-ai" type="button" data-ai-action="cards" hidden><span aria-hidden="true">✦</span> Keep or cancel?</button>' +
         '<a class="btn" href="#/cards/browse">Browse cards</a>' +
       '<button class="btn btn-primary" type="button" data-card-custom>+ Custom card</button></div></div>' +
     '<nav class="subtabs" aria-label="Cards"><a href="#/cards"' + (pane === 'yours' ? ' aria-current="page"' : '') + '>Your cards</a>' +

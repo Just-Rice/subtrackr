@@ -308,7 +308,7 @@ function renderMapping() {
           '<td class="num">' + M.fmtMoney(e.amount, e.cur) + '</td></tr>';
       }).join('') + '</tbody></table></div>' + (res.expenses.length > 8 ? '<p class="muted">…and ' + (res.expenses.length - 8) + ' more.</p>' : '') : '') +
     (unsorted.length ? '<p class="sub" style="margin-top:10px">' + U.plural(unsorted.length, 'description') + ' landed in “Everything else”. ' +
-      '<button class="link-btn" type="button" id="csvAi">✦ Sort them with Gemini</button></p>' : '') +
+      '<button class="link-btn" type="button" id="csvAi"><span aria-hidden="true">✦</span> Sort them with Gemini</button></p>' : '') +
     '<div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button>' +
       '<button class="btn btn-primary" type="button" id="csvGo"' + (res.expenses.length ? '' : ' disabled') + '>Import ' + U.plural(res.expenses.length, 'expense') + '</button></div>';
 
@@ -374,7 +374,7 @@ function render(route) {
     '<div class="view-head"><div><p class="eyebrow">' + (st().expenses.length ? U.plural(st().expenses.length, 'expense') + ' logged' : 'Everything that is not a subscription') + '</p>' +
       '<h1 id="h-spending">Spending</h1></div>' +
       '<div class="view-actions">' + monthNav() +
-        '<button class="btn btn-ai" type="button" data-ai-action="review" hidden>✦ Review my month</button>' +
+        '<button class="btn btn-ai" type="button" data-ai-action="review" hidden><span aria-hidden="true">✦</span> Review my month</button>' +
         '<button class="btn" type="button" data-import-csv>Import statement</button>' +
         '<button class="btn btn-primary" type="button" data-new-exp>+ Expense</button></div></div>' +
     '<nav class="subtabs" aria-label="Spending"><a href="#/spending"' + (pane === 'expenses' ? ' aria-current="page"' : '') + '>Expenses</a>' +

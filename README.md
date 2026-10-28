@@ -10,9 +10,10 @@ conversion. Add the credit cards you hold from a list of **37 cards in the US, U
 India** and see each one's credits, rewards and fee side by side. Log or import
 everything else you spend, and set budgets against it.
 
-Plain HTML, CSS and JavaScript. No build step, no framework, no backend, no account.
-Everything is saved in your browser's local storage and stays on your device unless
-you choose to sync it, encrypted, yourself.
+Plain HTML, CSS and JavaScript. No build step, no framework, no backend, no account
+needed. Everything is saved in your browser and stays on your device. The extras are
+all optional and off until you turn them on: Google sign-in with end-to-end encrypted
+sync, a passkey lock for the device, and Gemini analysis of your month.
 
 **Live at → https://just-rice.github.io/subtrackr/**
 
@@ -21,9 +22,14 @@ you choose to sync it, encrypted, yourself.
 ## What it does
 
 **Overview** — a glance, not a report: what goes out this month, the next charge,
-what your cards have paid back this year, the next three charges and the one thing
+what your cards have paid back this year, the next few charges and the one thing
 that most needs your attention — a trial to cancel, a card credit about to lapse, a
-budget overspent, a price rise. Every block opens the tab with the detail.
+budget overspent, a price rise. Every block opens the tab with the detail. The layout
+fills the window and the type grows with it; **Text size** in the sidebar scales
+everything further.
+
+Every catalogue service and card issuer shows its **real logo**. The 136 logos ship
+with the app (`logos/`), so showing one never contacts anyone.
 
 **Subscriptions** — add from the catalogue in two clicks or create your own. Each
 keeps its own amount, currency and billing cycle (weekly through yearly, plus 28-day
@@ -62,8 +68,49 @@ trials to cancel, with a total for each week. Export it all as an `.ics` file �
 recurring events with a reminder the day before — into any calendar app.
 
 **Your data** — export to JSON and import it back (merge or replace). Optional
-reminders, install as an app that works offline, and optional encrypted backup and
-sync.
+reminders, install as an app that works offline, encrypted backup and Gist sync, and
+the optional extras below.
+
+## Optional extras
+
+All off until you turn them on in **Your data**.
+
+**Account and encrypted sync.** Sign in with Google to keep a copy of your data in
+your account for your other devices. The copy is sealed in your browser with a key
+from your *sync passphrase* (PBKDF2-SHA256, 310,000 rounds → AES-256-GCM) before it is
+uploaded, so Firebase — and whoever runs the Firebase project — only ever stores
+ciphertext. The passphrase is typed once per device and never stored or sent. Changes
+upload a few seconds after you make them and come down when the app returns to the
+front; when two devices both changed things, a three-way merge keeps each side's own
+edits. Needs a Firebase project (see [Setting up sign-in, sync and AI](#setting-up-sign-in-sync-and-ai));
+without one the account card simply isn't shown.
+
+**Passkey lock.** Lock Subtrackr on a device with a passkey — Face ID, Touch ID,
+Windows Hello, a phone or a security key. The passkey's PRF secret wraps a random data
+key that encrypts everything saved on the device, so without the passkey the saved
+data is ciphertext. A recovery code, shown once, opens it too. While locked nothing is
+shown until it is unlocked, and it locks again after five minutes in the background.
+The sync key, a Gemini key and a GitHub token kept on the device are sealed under the
+lock as well. Browsers or passkeys without PRF support get a passphrase lock that works
+the same way. No account or server is involved.
+
+**AI analysis (Gemini).** A written **review of your month**, **answers to questions
+about your money**, **keep-or-cancel advice** on each card, and **sorting statement
+lines** no rule could place. Two ways to reach Gemini:
+
+- **your own Gemini API key** — free from [Google AI Studio](https://aistudio.google.com/apikey),
+  no sign-in; requests go from your browser straight to Google on your own allowance,
+  and the key stays in your browser;
+- **your Google account** — signed in, through Firebase AI Logic on the site's shared
+  free allowance.
+
+Every request tries Gemini 3.8 Flash first and moves down the list in
+`js/data/gemini-models.js` (nothing older than the 3.1 generation) whenever a model's
+free per-minute or per-day allowance runs out. What Gemini sees is built in
+`js/core/aidata.js` — totals, subscription names and prices, card values and budgets;
+never ids, notes or the shops in your expenses — and the first request of each kind
+shows you exactly what will be sent. Sorting statement lines sends only the unplaced
+shop names, and always asks first.
 
 **Switch markets** — 50 markets and 45 currencies. A tier that isn't sold in your
 market says so rather than inventing a number; prices not carried for a market are
@@ -74,14 +121,18 @@ estimated and marked `est.`
 Nothing leaves your browser except:
 
 - a request for exchange rates to [open.er-api.com](https://open.er-api.com) (free,
-  no key, nothing about you in it) — a built-in table is used if it fails, and
-- anything you explicitly sync. **Download encrypted backup** and **Sync through a
-  private GitHub Gist** encrypt the whole state in the browser first (PBKDF2-SHA256,
-  310,000 rounds → AES-256-GCM) with a passphrase that is never stored. GitHub, or
-  wherever you keep the file, only ever sees ciphertext. Gist sync needs a token
-  with only the `gist` scope, kept on the device only if you ask.
+  no key, nothing about you in it) — a built-in table is used if it fails;
+- anything you explicitly sync. **Download encrypted backup**, **Sync through a
+  private GitHub Gist** and **encrypted sync** through your account all encrypt the
+  whole state in the browser first with a passphrase that is never stored, so GitHub,
+  Firebase or wherever you keep the file only ever see ciphertext. Gist sync needs a
+  token with only the `gist` scope, kept on the device only if you ask;
+- if you sign in, Google sign-in itself, and the Firebase SDK is loaded from Google's
+  CDN — only for someone who signs in;
+- if you turn AI analysis on, what each request shows you before it is sent.
 
-No web fonts, analytics or third-party scripts are loaded.
+No web fonts, analytics or tracking scripts are loaded, and logos are bundled rather
+than fetched.
 
 ## Running it locally
 
@@ -98,8 +149,9 @@ exchange-rate fetch and offline caching, nothing else.
 ## Tests
 
 The app's logic — money, dates, pricing, storage and migration, card value, CSV
-parsing, budgets, the advisor, the calendar export and encryption — is plain functions
-with Node tests and no dependencies:
+parsing, budgets, the advisor, the calendar export, encryption and the lock, sync's
+merge, what AI is shown, the Gemini model fallback, the price-check guardrails and
+catalogue patcher — is plain functions with Node tests and no dependencies:
 
 ```sh
 npm test        # node --test, Node 18+
@@ -121,6 +173,67 @@ GitHub from running the files through Jekyll either way.
 Every asset path is relative, so the site works unchanged at a repository sub-path
 (`/subtrackr/`), at a custom domain, or from a local folder. When you add a script,
 add it to the `SHELL` list in `sw.js` too — a test fails if you forget.
+
+## Setting up sign-in, sync and AI
+
+Sign-in, encrypted sync and AI through an account need a Firebase project. Its free
+Spark plan is enough. Until `js/firebase-config.js` is filled in, none of it is shown
+and nothing is loaded from Google; AI with your own key works either way.
+
+1. In the [Firebase console](https://console.firebase.google.com), **Add project**
+   (Google Analytics isn't needed).
+2. **Project settings → General → Your apps → Web (`</>`)**: register the app (no
+   Hosting) and copy its `firebaseConfig` object into `FIREBASE_CONFIG` in
+   `js/firebase-config.js`. These values identify the project and are meant to be public.
+3. **Authentication → Get started → Sign-in method → Google → Enable.** Under
+   **Settings → Authorized domains**, add the site's domain (`just-rice.github.io`);
+   `localhost` is there already.
+4. **Firestore Database → Create database** (production mode). Under **Rules**, paste
+   `firestore.rules` and **Publish**. Each account can then read and write only its own
+   encrypted copy.
+5. For AI through sign-in: **AI Logic → Get started → Gemini Developer API**, then
+   **App Check → Apps →** register the web app with **reCAPTCHA Enterprise** for the
+   site's domain and put its site key in `RECAPTCHA_SITE_KEY`. Firebase requires App
+   Check for AI Logic.
+
+## Keeping prices fresh
+
+`.github/workflows/prices.yml` runs `scripts/check-prices.mjs` on the 1st of every
+month. It asks Gemini, with Google Search, for the current list price of every plan in
+every market the catalogue carries, and the current fee, welcome offer and credits of
+every built-in card. A figure is changed only when its source page was among the
+search results Gemini actually used, it is a sane amount for its currency and it moved
+by 40% or less; everything else is listed for a person to check. Plans, markets and
+credits are never added or removed automatically. The result is a pull request with a
+table of every change and its source — nothing merges by itself.
+
+Setup, once:
+
+1. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/apikey).
+2. **Settings → Secrets and variables → Actions → New repository secret**:
+   `GEMINI_API_KEY`.
+3. **Settings → Actions → General → Workflow permissions**: tick **Allow GitHub
+   Actions to create and approve pull requests**.
+
+To try it: **Actions → Price check → Run workflow**, with **Dry run** ticked and, say,
+`netflix,amex-gold` in **Only**. Locally:
+
+```sh
+GEMINI_API_KEY=… node scripts/check-prices.mjs --only netflix,spotify --dry-run
+```
+
+A run makes about 165 requests, paced to stay inside the free per-minute limits, and
+moves to the next model when one's daily allowance runs out.
+
+## Logos
+
+`scripts/fetch-logos.mjs` downloads each service's and issuer's own icon once,
+normalises it to a 96px PNG in `logos/` and rewrites `js/data/logos.js`. Run it again
+after adding services or cards (it needs Playwright with Chromium). Sites that turn
+scripts away fall back to icon services and, for a few brands, the CC0
+[Simple Icons](https://simpleicons.org) set; a bad one can be pointed elsewhere in the
+script's `OVERRIDES`. The logos are trademarks of their owners, shown only to identify
+the service. Anything without one keeps its coloured initials.
 
 ## Upgrading from the subscription-only version
 
@@ -263,6 +376,9 @@ js/data/regions.js             50 markets, 45 currencies, fallback FX table, pri
 js/data/catalog.js             130 services, 466 tiers
 js/data/cards.js               37 cards — US, UK, India
 js/data/spending.js            spending categories
+js/data/logos.js, logos/       bundled logos (written by scripts/fetch-logos.mjs)
+js/data/gemini-models.js       Gemini models to use, best first
+js/firebase-config.js          the Firebase project, or null for local-only
 js/core/                       pure logic, tested in Node:
   util, money, dates, pricing      formatting, cycles, dates without UTC drift, tier prices
   store                            saved state, v1 → v2 migration, cleaning, import, merge
@@ -271,11 +387,16 @@ js/core/                       pure logic, tested in Node:
   cardvalue                        credits, rewards, card-years, bonuses, best card
   csv, budgets, advisor            statement import, budgets and recurring charges, ways to save
   ics, sync                        calendar export, encrypted backup and Gist sync
-  ui                               DOM helpers, modal, toasts
+  vault, lock                      keys and envelopes; the passkey lock
+  gemini, aidata                   model fallback and REST calls; what Gemini is shown and asked
+  ui                               DOM helpers, modal, toasts, logos
+js/cloud/                      firebase (loads the SDK on demand), account (sign-in, encrypted sync), ai
 js/views/                      overview, subs, cards, spending, calendar, data
 js/app.js                      state, routing, settings, reminders, boot
 tests/                         node --test suites
-.github/workflows/pages.yml    publishes to GitHub Pages on push to main
+scripts/                       fetch-logos.mjs, check-prices.mjs (+ lib/ patcher and guardrails)
+firestore.rules                who may read and write the encrypted copies
+.github/workflows/             pages.yml publishes; test.yml runs the tests; prices.yml checks prices monthly
 ```
 
 ## Licence
