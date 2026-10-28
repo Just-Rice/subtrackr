@@ -67,7 +67,8 @@
     <section class="view" id="view-overview" aria-labelledby="h-overview" hidden>
       <div class="view-head">
         <div><p class="eyebrow" id="todayLabel"></p><h1 id="h-overview">Overview</h1></div>
-        <div class="view-actions"><button class="btn btn-primary" type="button" data-add>+ Add</button></div>
+        <div class="view-actions"><button class="btn btn-ai" type="button" data-ai-action="ask" hidden>✦ Ask about your money</button>
+          <button class="btn btn-primary" type="button" data-add>+ Add</button></div>
       </div>
       <div class="glance" id="glance"></div>
     </section>
@@ -213,11 +214,13 @@
 <script src="js/core/ics.js"></script>
 <script src="js/core/sync.js"></script>
 <script src="js/core/vault.js"></script>
+<script src="js/core/aidata.js"></script>
 <script src="js/core/lock.js"></script>
 <script src="js/core/gemini.js"></script>
 <script src="js/core/ui.js"></script>
 <script src="js/cloud/firebase.js"></script>
 <script src="js/cloud/account.js"></script>
+<script src="js/cloud/ai.js"></script>
 <script src="js/views/subs.js"></script>
 <script src="js/views/overview.js"></script>
 <script src="js/views/calendar.js"></script>

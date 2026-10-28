@@ -550,3 +550,20 @@ body.locked .shell, body.locked .bottom-nav, body.locked .skip { display: none; 
 .lock-error { color: var(--bad); font-size: .875rem; margin: 0; }
 .recovery-code { font-family: var(--mono); font-size: 1.25rem; letter-spacing: .04em; background: var(--surface-2); border-radius: 10px;
                  padding: 14px; margin: 14px 0 10px; text-align: center; user-select: all; overflow-wrap: anywhere; }
+
+/* ── AI analysis ─────────────────────────────────────────────────────── */
+.btn-ai { border-color: var(--accent); color: var(--accent); }
+.btn-ai:hover { background: var(--accent-soft); color: var(--accent); }
+.ai-preview { font-family: var(--mono); font-size: .75rem; line-height: 1.45; background: var(--surface-2); border-radius: 10px; padding: 12px 14px;
+              max-height: 45vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 12px 0; }
+.ai-answer { font-size: 1rem; line-height: 1.6; }
+.ai-answer ul { margin: 0 0 .8rem; padding-left: 1.25rem; }
+.ai-answer li { margin-bottom: .35rem; }
+.ai-foot { margin-top: 14px; }
+.ai-wait { display: flex; align-items: center; gap: 12px; color: var(--muted); margin: 8px 0 4px; }
+.spinner { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border-strong); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.ai-choice { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-top: 12px; }
+.ai-choice h3 { font-size: .9375rem; margin-bottom: 4px; }
+.ai-choice .muted { margin: 0 0 10px; }

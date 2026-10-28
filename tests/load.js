@@ -30,6 +30,7 @@ const PURE = [
   'js/core/sync.js',
   'js/core/gemini.js',
   'js/core/vault.js',
+  'js/core/aidata.js',
   'js/core/lock.js',
   'js/cloud/account.js'
 ];

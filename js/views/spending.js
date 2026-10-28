@@ -264,6 +264,12 @@ function openImport() {
   });
 }
 
+/* categories Gemini chose for lines no rule could place */
+function withAiCats(res, p) {
+  if (p.aiCats) res.expenses.forEach(function (e) { if (e.cat === 'other' && !e.subId && p.aiCats[e.merchant]) e.cat = p.aiCats[e.merchant]; });
+  return res;
+}
+
 function renderMapping() {
   const p = pendingCsv;
   const head = p.map.hasHeader ? p.rows[0] : p.rows[0].map(function (_, i) { return 'Column ' + (i + 1); });
@@ -273,7 +279,8 @@ function renderMapping() {
       head.map(function (h, i) { return '<option value="' + i + '"' + (i === val ? ' selected' : '') + '>' + esc(h || 'Column ' + (i + 1)) + '</option>'; }).join('') +
       '</select></div>';
   }
-  const res = C.toExpenses(p.rows, p.map, { cur: p.cur, cardId: p.cardId, st: st() });
+  const res = withAiCats(C.toExpenses(p.rows, p.map, { cur: p.cur, cardId: p.cardId, st: st() }), p);
+  const unsorted = ST.ai && ST.ai.enabled() ? ST.aidata.merchants(res.expenses) : [];
   const cards = st().cards.filter(function (c) { return c.active; });
   $('#csvStep').innerHTML =
     (p.remembered ? '<p class="tag tag-good" style="margin-bottom:12px">Using the columns you chose last time for this bank</p>' : '') +
@@ -300,6 +307,8 @@ function renderMapping() {
           (e.subId ? ' <span class="tag tag-good">subscription</span>' : '') + '</td><td>' + esc(catName(e.cat)) + '</td>' +
           '<td class="num">' + M.fmtMoney(e.amount, e.cur) + '</td></tr>';
       }).join('') + '</tbody></table></div>' + (res.expenses.length > 8 ? '<p class="muted">…and ' + (res.expenses.length - 8) + ' more.</p>' : '') : '') +
+    (unsorted.length ? '<p class="sub" style="margin-top:10px">' + U.plural(unsorted.length, 'description') + ' landed in “Everything else”. ' +
+      '<button class="link-btn" type="button" id="csvAi">✦ Sort them with Gemini</button></p>' : '') +
     '<div class="modal-foot"><button class="btn" type="button" data-close>Cancel</button>' +
       '<button class="btn btn-primary" type="button" id="csvGo"' + (res.expenses.length ? '' : ' disabled') + '>Import ' + U.plural(res.expenses.length, 'expense') + '</button></div>';
 
@@ -313,9 +322,24 @@ function renderMapping() {
       renderMapping();
     });
   });
+  if ($('#csvAi')) $('#csvAi').addEventListener('click', function () {
+    const btn = this;
+    btn.disabled = true; btn.textContent = 'Asking Gemini…';
+    ST.ai.categorise(unsorted).then(function (cats) {
+      p.aiCats = Object.assign({}, p.aiCats, cats);
+      const n = Object.keys(cats).length;
+      UI.openModal('Import a statement', '<div id="csvStep"></div>');
+      renderMapping();
+      UI.toast(n ? 'Gemini sorted ' + U.plural(n, 'description') + '.' : 'Gemini wasn’t sure about any of them.');
+    }).catch(function (err) {
+      UI.openModal('Import a statement', '<div id="csvStep"></div>');
+      renderMapping();
+      if (err.message !== 'cancelled') UI.toast(err.message);
+    });
+  });
   $('#csvGo').addEventListener('click', function () {
     const s = st();
-    const out = C.toExpenses(p.rows, p.map, { cur: p.cur, cardId: p.cardId, st: s });
+    const out = withAiCats(C.toExpenses(p.rows, p.map, { cur: p.cur, cardId: p.cardId, st: s }), p);
     out.expenses.forEach(function (e) { s.expenses.push(e); });
     s.csvMappings[p.sig] = Object.assign({}, p.map, { cur: p.cur, cardId: p.cardId });
     const latest = out.expenses.reduce(function (m, e) { return e.date > m ? e.date : m; }, '');
@@ -350,6 +374,7 @@ function render(route) {
     '<div class="view-head"><div><p class="eyebrow">' + (st().expenses.length ? U.plural(st().expenses.length, 'expense') + ' logged' : 'Everything that is not a subscription') + '</p>' +
       '<h1 id="h-spending">Spending</h1></div>' +
       '<div class="view-actions">' + monthNav() +
+        '<button class="btn btn-ai" type="button" data-ai-action="review" hidden>✦ Review my month</button>' +
         '<button class="btn" type="button" data-import-csv>Import statement</button>' +
         '<button class="btn btn-primary" type="button" data-new-exp>+ Expense</button></div></div>' +
     '<nav class="subtabs" aria-label="Spending"><a href="#/spending"' + (pane === 'expenses' ? ' aria-current="page"' : '') + '>Expenses</a>' +

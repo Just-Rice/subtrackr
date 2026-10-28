@@ -41,6 +41,7 @@ function render() {
       '</div></section>' +
     remindersHtml() +
     '</div><div class="col">' +
+    (ST.ai ? ST.ai.cardHtml() : '') +
     (ST.sync ? ST.sync.cardHtml() : '') +
     '<section class="card"><div class="card-head"><h2>Exchange rates</h2></div>' +
       '<p class="muted" style="margin:0">' + fx + '</p>' +
@@ -166,6 +167,7 @@ function wire() {
   if (ST.sync) ST.sync.wire();
   if (ST.account) ST.account.wire();
   if (ST.lock) ST.lock.wire();
+  if (ST.ai) ST.ai.wire();
 }
 
 ST.views = ST.views || {};

@@ -45,6 +45,7 @@ app.render = function () {
   const s = app.state;
   $('#countSubs').textContent = s.subs.filter(function (x) { return x.active; }).length || '';
   $('#countCards').textContent = s.cards.filter(function (x) { return x.active; }).length || '';
+  if (ST.ai) ST.ai.refresh();
 };
 
 function onRoute(focus) {
