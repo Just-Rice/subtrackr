@@ -13,6 +13,7 @@ const PURE = [
   'js/data/catalog.js',
   'js/data/spending.js',
   'js/data/cards.js',
+  'js/data/gemini-models.js',
   'js/core/util.js',
   'js/core/money.js',
   'js/core/dates.js',
@@ -26,7 +27,8 @@ const PURE = [
   'js/core/advisor.js',
   'js/core/insights.js',
   'js/core/ics.js',
-  'js/core/sync.js'
+  'js/core/sync.js',
+  'js/core/gemini.js'
 ];
 
 function memoryStorage() {
@@ -42,7 +44,7 @@ function memoryStorage() {
 function load(opts) {
   const o = opts || {};
   const storage = memoryStorage();
-  const ctx = { console, localStorage: storage, setTimeout, clearTimeout, Date, Intl, TextEncoder, TextDecoder, crypto: globalThis.crypto, btoa, atob };
+  const ctx = { console, localStorage: storage, setTimeout, clearTimeout, Date, Intl, TextEncoder, TextDecoder, crypto: globalThis.crypto, btoa, atob, fetch: globalThis.fetch };
   ctx.window = ctx;
   vm.createContext(ctx);
   PURE.forEach(f => {
