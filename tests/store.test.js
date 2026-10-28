@@ -19,7 +19,7 @@ test('v1 saved data migrates to v2 and keeps the v1 key as a backup', () => {
   const { state, from } = ctx.ST.store.load(ctx.storage);
   assert.equal(from, 'v1');
   assert.equal(state.version, 2);
-  assert.deepEqual(plain(state.settings), { region: 'IN', currency: 'INR', theme: 'dark' });
+  assert.deepEqual(plain(state.settings), { region: 'IN', currency: 'INR', theme: 'dark', textsize: 'medium' });
   assert.equal(state.subs.length, 3);
   assert.deepEqual(plain(state.compare), ['netflix']);
   assert.deepEqual(plain(state.cards), []);
@@ -38,6 +38,8 @@ test('sanitise pins hostile and broken fields', () => {
   assert.equal(dup.cur, 'USD');
   assert.equal(dup.cycle, 'monthly');
   assert.equal(dup.nextDate, '');
+  const odd = ctx.ST.store.migrate({ version: 2, settings: { region: 'US', textsize: 'huge' } });
+  assert.equal(odd.settings.textsize, 'medium', 'unknown text size falls back');
 });
 
 test('v2 round trip through save and load', () => {

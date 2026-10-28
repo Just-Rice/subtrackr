@@ -64,11 +64,12 @@ function render() {
     t3 = tile({ href: '#/cards', label: 'Card value', value: '—', note: 'Add a card to see what it pays you back', cta: 'Cards' });
   }
 
-  const up = L.upcoming(s, 3, 60);
+  /* three on a phone or a short window; a tall screen shows five (CSS) */
+  const up = L.upcoming(s, 5, 60);
   const upHtml = '<section class="card card-flush"><div class="card-head"><h2>Coming up</h2>' +
     '<a class="link-btn" href="#/calendar">See all in Calendar ›</a></div>' +
-    (up.length ? '<ul class="rows">' + up.map(function (e) {
-      return '<li class="row"><span class="row-when">' + esc(D.fmtDate(e.date, { weekday: 'short', day: 'numeric' })) + '</span>' +
+    (up.length ? '<ul class="rows">' + up.map(function (e, i) {
+      return '<li class="row' + (i >= 3 ? ' row-extra' : '') + '"><span class="row-when">' + esc(D.fmtDate(e.date, { weekday: 'short', day: 'numeric' })) + '</span>' +
         UI.dot(e.color) + '<span class="row-main"><span class="row-title">' + esc(e.title) + '</span></span>' +
         '<span class="row-amt">' + UI.usd(e.usd) + '</span></li>';
     }).join('') + '</ul>'

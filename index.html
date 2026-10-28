@@ -51,6 +51,10 @@
     <div class="side-foot">
       <label>Market <select id="regionSelect"></select></label>
       <label>Show prices in <select id="currencySelect"></select></label>
+      <label>Text size <select id="textSizeSelect">
+        <option value="small">Small</option><option value="medium">Medium</option>
+        <option value="large">Large</option><option value="xlarge">Extra large</option>
+      </select></label>
       <button class="btn btn-sm" id="themeBtn" type="button">Theme: auto</button>
       <span class="muted">Everything stays in this browser.</span>
     </div>
@@ -60,7 +64,7 @@
   <main class="content" id="main" tabindex="-1">
 
     <!-- ───────────── OVERVIEW: a glance; every block opens its tab ───────────── -->
-    <section class="view narrow" id="view-overview" aria-labelledby="h-overview" hidden>
+    <section class="view" id="view-overview" aria-labelledby="h-overview" hidden>
       <div class="view-head">
         <div><p class="eyebrow" id="todayLabel"></p><h1 id="h-overview">Overview</h1></div>
         <div class="view-actions"><button class="btn btn-primary" type="button" data-add>+ Add</button></div>
@@ -158,7 +162,7 @@
     </section>
 
     <!-- ───────────── DATA ───────────── -->
-    <section class="view narrow" id="view-data" aria-labelledby="h-data" hidden>
+    <section class="view" id="view-data" aria-labelledby="h-data" hidden>
       <div class="view-head"><div><h1 id="h-data">Your data</h1>
         <p class="sub">Everything lives in this browser's local storage. Nothing is uploaded unless you use the encrypted sync below.</p></div></div>
       <div id="dataRoot"></div>

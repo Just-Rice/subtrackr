@@ -21,7 +21,7 @@ function render() {
       })()
     : 'Using the built-in rate table. Rates are approximate and only affect the display currency, never a market\'s list price.';
 
-  $('#dataRoot').innerHTML =
+  $('#dataRoot').innerHTML = '<div class="cols"><div class="col">' +
     '<section class="card"><div class="card-head"><h2>Storage</h2></div>' +
       '<dl class="kv">' +
         '<dt>Subscriptions</dt><dd>' + s.subs.length + '</dd>' +
@@ -38,6 +38,7 @@ function render() {
         '<button class="btn btn-danger" type="button" id="wipeBtn">Erase everything</button>' +
       '</div></section>' +
     remindersHtml() +
+    '</div><div class="col">' +
     (ST.sync ? ST.sync.cardHtml() : '') +
     '<section class="card"><div class="card-head"><h2>Exchange rates</h2></div>' +
       '<p class="muted" style="margin:0">' + fx + '</p>' +
@@ -47,7 +48,7 @@ function render() {
       '<p>Where a publisher\'s exact local price isn\'t in the catalogue, the price is estimated from the US price and that market\'s typical price level for digital subscriptions, then converted. Estimates are marked <span class="est-tag">est.</span></p>' +
       '<p><strong>Show prices in</strong> only changes the currency the numbers are displayed in.</p>' +
       '<p>Card fees, credits and earn rates are a dated snapshot of each issuer\'s published terms. Check the issuer\'s site before you apply — they change often.</p>' +
-    '</div></section>';
+    '</div></section></div></div>';
 }
 
 function remindersHtml() {

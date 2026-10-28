@@ -21,11 +21,12 @@ const VERSION = 2;
 
 /* how often a card credit refills */
 const CADENCES = ['monthly', 'quarterly', 'semiannual', 'yearly', 'cardyear', 'once'];
+const TEXT_SIZES = ['small', 'medium', 'large', 'xlarge'];
 
 function freshState() {
   return {
     version: VERSION,
-    settings: { region: 'US', currency: 'USD', theme: 'auto' },
+    settings: { region: 'US', currency: 'USD', theme: 'auto', textsize: 'medium' },
     subs: [], cards: [], expenses: [], budgets: [],
     compare: [], csvMappings: {}, dismissed: {},
     fx: null            /* { rates: {...}, at: epochMs } */
@@ -43,7 +44,8 @@ function cleanSettings(s) {
   return {
     region: region,
     currency: cur(o.currency, REGION_BY_CODE[region].cur),
-    theme: ['auto', 'light', 'dark'].indexOf(o.theme) === -1 ? 'auto' : o.theme
+    theme: ['auto', 'light', 'dark'].indexOf(o.theme) === -1 ? 'auto' : o.theme,
+    textsize: TEXT_SIZES.indexOf(o.textsize) === -1 ? 'medium' : o.textsize
   };
 }
 
@@ -299,7 +301,7 @@ function merge(target, incoming) {
   return counts;
 }
 
-ST.store = { KEY: KEY, KEY_V1: KEY_V1, VERSION: VERSION, CADENCES: CADENCES,
+ST.store = { KEY: KEY, KEY_V1: KEY_V1, VERSION: VERSION, CADENCES: CADENCES, TEXT_SIZES: TEXT_SIZES,
              freshState: freshState, sanitise: sanitise, migrate: migrate, load: load,
              save: save, saveNow: saveNow, cancelSave: cancelSave, wipe: wipe, bytesUsed: bytesUsed,
              exportPayload: exportPayload, parseImport: parseImport, merge: merge,

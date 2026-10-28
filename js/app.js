@@ -92,7 +92,9 @@ function buildSelects() {
 function applyTheme() {
   const t = app.state.settings.theme;
   document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.setAttribute('data-textsize', app.state.settings.textsize);
   $('#themeBtn').textContent = 'Theme: ' + t;
+  $('#textSizeSelect').value = app.state.settings.textsize;
 }
 
 app.refreshChrome = function () { buildSelects(); applyTheme(); };
@@ -242,6 +244,10 @@ function wire() {
     const t = app.state.settings.theme;
     app.state.settings.theme = t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto';
     applyTheme(); app.save();
+  });
+  $('#textSizeSelect').addEventListener('change', function (e) {
+    app.state.settings.textsize = e.target.value;
+    applyTheme(); app.save(); app.render();
   });
 
   $('#moreBtn').addEventListener('click', function () {
