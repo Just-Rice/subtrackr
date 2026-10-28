@@ -15,6 +15,7 @@ const app = ST.app = { state: null, route: null };
 
 app.save = function () {
   S.save(app.state, function () { UI.toast('Could not save — browser storage is unavailable.'); });
+  if (ST.account) ST.account.changed();
 };
 
 app.replaceState = function (next) {
@@ -287,6 +288,7 @@ if (loaded.from === 'v1') {
   UI.toast('Browser storage is blocked here — nothing you add will be saved.');
 }
 
+if (ST.account) ST.account.init();   /* only does anything for someone who signed in before */
 if (fxAgeHours() > 12) app.refreshFx(false);
 /* a tab left open for days would otherwise keep the rates it booted with */
 document.addEventListener('visibilitychange', function () {

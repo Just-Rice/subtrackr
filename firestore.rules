@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// Subtrackr keeps one document per signed-in account: users/{uid}, holding the
+// encrypted copy of that person's data (sealed in their browser with a key from
+// their sync passphrase, so this database only ever stores ciphertext). Only
+// the account itself may read, write or delete it, and only the fields the app
+// writes, within a size limit, so an account can't be used to store anything
+// else here. Everything else is closed.
+//
+// Deploy: Firebase console → Firestore Database → Rules → paste this → Publish
+// (or `firebase deploy --only firestore:rules`).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function owner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validCopy() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['v', 'blob', 'salt', 'iter', 'updatedAt', 'device'])
+        && d.v == 1
+        && d.blob is string && d.blob.size() <= 900000
+        && d.salt is string && d.salt.size() <= 64
+        && d.iter is int && d.iter >= 100000
+        && d.updatedAt is int
+        && d.device is string && d.device.size() <= 64;
+    }
+
+    match /users/{uid} {
+      allow read, delete: if owner(uid);
+      allow create, update: if owner(uid) && validCopy();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

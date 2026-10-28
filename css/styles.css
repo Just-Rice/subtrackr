@@ -528,3 +528,7 @@ td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numer
 .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: 16px; align-items: start; }
 .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .col > .card + .card { margin-top: 0; }
+
+/* ── account ─────────────────────────────────────────────────────────── */
+.who { display: flex; align-items: center; gap: 12px; }
+.who-name { font-weight: 600; }

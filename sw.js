@@ -7,7 +7,7 @@
  * index.html so a new script cannot be left out.
  */
 
-const VERSION = 'subtrackr-v2-2';
+const VERSION = 'subtrackr-v2-3';
 
 const SHELL = [
   './',
@@ -23,6 +23,8 @@ const SHELL = [
   'js/data/spending.js',
   'js/data/cards.js',
   'js/data/logos.js',
+  'js/data/gemini-models.js',
+  'js/firebase-config.js',
   'js/core/util.js',
   'js/core/money.js',
   'js/core/dates.js',
@@ -37,7 +39,11 @@ const SHELL = [
   'js/core/insights.js',
   'js/core/ics.js',
   'js/core/sync.js',
+  'js/core/vault.js',
+  'js/core/gemini.js',
   'js/core/ui.js',
+  'js/cloud/firebase.js',
+  'js/cloud/account.js',
   'js/views/subs.js',
   'js/views/overview.js',
   'js/views/calendar.js',

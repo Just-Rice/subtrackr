@@ -28,7 +28,9 @@ const PURE = [
   'js/core/insights.js',
   'js/core/ics.js',
   'js/core/sync.js',
-  'js/core/gemini.js'
+  'js/core/gemini.js',
+  'js/core/vault.js',
+  'js/cloud/account.js'
 ];
 
 function memoryStorage() {

@@ -22,6 +22,7 @@ function render() {
     : 'Using the built-in rate table. Rates are approximate and only affect the display currency, never a market\'s list price.';
 
   $('#dataRoot').innerHTML = '<div class="cols"><div class="col">' +
+    (ST.account ? ST.account.cardHtml() : '') +
     '<section class="card"><div class="card-head"><h2>Storage</h2></div>' +
       '<dl class="kv">' +
         '<dt>Subscriptions</dt><dd>' + s.subs.length + '</dd>' +
@@ -161,6 +162,7 @@ function wire() {
     if (b) applyImport(b.dataset.import);
   });
   if (ST.sync) ST.sync.wire();
+  if (ST.account) ST.account.wire();
 }
 
 ST.views = ST.views || {};
