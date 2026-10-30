@@ -153,3 +153,12 @@ test('a probe reports which features each model allows, and changes nothing', as
     assert.equal(fs.readFileSync(path.join(ROOT, 'js/data/catalog.js'), 'utf8'), catalogBefore);
   });
 });
+
+test('a run past its time budget stops cleanly and still reports', async () => {
+  const fake = fakeGemini();
+  await withServer(fake, async report => {
+    await runCheck(fake.server, ['--only', 'netflix,amex-gold', '--dry-run', '--minutes', '0.0001', '--report', report]);
+    const md = fs.readFileSync(report, 'utf8');
+    assert.match(md, /\*\*Stopped early: it used its 0\.0001 minutes\*\*/);
+  });
+});

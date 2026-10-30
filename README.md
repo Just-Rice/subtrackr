@@ -243,7 +243,9 @@ GEMINI_API_KEY=… node scripts/check-prices.mjs --probe
 The first full run makes about 330 requests (one to find each service's pages, one to
 read them); later runs about 165, paced to stay inside the free per-minute limits, and
 move to the next model when one's daily allowance runs out. A request that gets no
-reply in 90 seconds is given up and the next model is asked.
+reply in 90 seconds is given up and the next model is asked. A run stops itself after
+4½ hours (inside GitHub's limit) and still opens its pull request with what it did,
+pages learned included; the rest, stalest first, wait for the next run.
 
 ## Logos
 

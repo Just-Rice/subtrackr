@@ -20,6 +20,7 @@
  *     --dry-run                  report only; change no files
  *     --report <file>            where the report goes (default price-report.md)
  *     --limit <n>                stop after n requests
+ *     --minutes <n>              stop cleanly after n minutes, keeping what was done
  *     --probe                    just test which Gemini features this key can use
  *                                (plain answers, Google Search, reading a page) on
  *                                each model, and report what Google says
@@ -50,6 +51,7 @@ function args(argv) {
     else if (a === '--dry-run') o.dryRun = true;
     else if (a === '--report') o.report = argv[++i];
     else if (a === '--limit') o.limit = Number(argv[++i]);
+    else if (a === '--minutes') o.minutes = Number(argv[++i]);
     else if (a === '--services') o.cards = false;
     else if (a === '--cards') o.services = false;
     else if (a === '--probe') o.probe = true;
@@ -267,8 +269,10 @@ async function main() {
   cards.sort((a, b) => staleness(a.asOf).localeCompare(staleness(b.asOf)));
 
   const refusals = new Map();     /* model → what Google last said when it refused */
+  const deadline = o.minutes > 0 ? Date.now() + o.minutes * 60000 : Infinity;
   async function request(ask) {
     if (requests >= o.limit) throw new Error('limit');
+    if (Date.now() > deadline) throw new Error('time');
     if (requests++) await sleep(PACE_MS);
     const r = await G.withModels('ci', async model => {
       try { return await ask(model); }
@@ -285,6 +289,7 @@ async function main() {
   /* why a failed request ends the run, or '' when only that item failed */
   function stopReason(e) {
     if (e.message === 'limit') return 'it reached the --limit of ' + o.limit + ' requests';
+    if (e.message === 'time') return 'it used its ' + o.minutes + ' minutes';
     const p = G.modelProblem(e);
     return !p ? '' : p === 'network' ? 'Gemini could not be reached' : 'every model refused or was out of allowance (see What Google said)';
   }

@@ -55,7 +55,8 @@ jobs:
           if [ -n "${ONLY:-}" ]; then extra+=(--only "$ONLY"); fi
           if [ "${DRY_RUN:-false}" = "true" ]; then extra+=(--dry-run); fi
           if [ "${PROBE:-false}" = "true" ]; then extra+=(--probe); fi
-          node scripts/check-prices.mjs --report "$RUNNER_TEMP/price-report.md" "${extra[@]}"
+          # stop cleanly well inside the job's time limit, so what was done still opens a pull request
+          node scripts/check-prices.mjs --minutes 270 --report "$RUNNER_TEMP/price-report.md" "${extra[@]}"
           cat "$RUNNER_TEMP/price-report.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Tests still pass with the new figures
         if: inputs.probe != true
