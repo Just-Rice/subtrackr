@@ -94,3 +94,12 @@ test('wipe cancels a pending save', async () => {
   await new Promise(r => setTimeout(r, 200));
   assert.equal(ctx.storage.getItem('subtrackr.v2'), null);
 });
+
+test('a statement line linked to a subscription that no longer exists counts as spending again', () => {
+  const { ST } = load();
+  const st = ST.store.migrate({ version: 2, subs: [{ id: 'n', name: 'Netflix', amount: 19.99, cur: 'USD' }],
+    expenses: [{ id: 'a', date: '2026-10-01', amount: 19.99, cur: 'USD', merchant: 'NETFLIX.COM', subId: 'n' },
+               { id: 'b', date: '2026-10-01', amount: 9.99, cur: 'USD', merchant: 'HULU', subId: 'gone' }] });
+  assert.equal(st.expenses.find(e => e.id === 'a').subId, 'n');
+  assert.equal(st.expenses.find(e => e.id === 'b').subId, '');
+});

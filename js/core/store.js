@@ -185,6 +185,11 @@ function sanitise(raw) {
   st.subs = uniqueIds(arr(raw.subs).map(cleanSub));
   st.cards = uniqueIds(arr(raw.cards).map(cleanCard));
   st.expenses = uniqueIds(arr(raw.expenses).map(cleanExpense));
+  /* a statement line linked to a subscription is left out of spending (the
+     subscription counts it); once the subscription is gone it must count again */
+  const subIds = {};
+  st.subs.forEach(function (s) { subIds[s.id] = true; });
+  st.expenses.forEach(function (e) { if (e.subId && !subIds[e.subId]) e.subId = ''; });
   /* one budget per category; the last one written wins */
   const byCat = {};
   arr(raw.budgets).map(cleanBudget).forEach(function (b) { byCat[b.cat] = b; });
