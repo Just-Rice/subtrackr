@@ -115,13 +115,16 @@ function wire() {
     } else if (id === 'importBtn') {
       $('#importFile').click();
     } else if (id === 'wipeBtn') {
-      if (!confirm('Erase every subscription, card, expense and setting from this browser? This cannot be undone.')) return;
-      S.wipe();
-      if (ST.lock) { ST.lock.clear(); S.setLockKey(null); }
-      ST.app.replaceState(S.freshState());
-      ST.app.refreshChrome();
-      ST.app.render();
-      UI.toast('Everything erased.');
+      if (!confirm('Erase everything Subtrackr keeps in this browser — subscriptions, cards, expenses, settings, the lock, ' +
+                   'and any sign-in, sync key or Gemini key? A copy in your Google account, if you sync, is kept. This cannot be undone.')) return;
+      /* everything goes, sign-in and sync included: a device left signed in would
+         upload this empty state over the copy in the account at the next change */
+      (ST.account && ST.account.signedIn() ? ST.account.signOut().catch(function () { /* offline: forgotten locally anyway */ }) : Promise.resolve())
+        .then(function () { return S.eraseDevice(); })
+        .then(function () {
+          try { sessionStorage.setItem('subtrackr.erased', '1'); } catch (e) { /* no toast then */ }
+          location.reload();
+        });
     } else if (id === 'fxRefresh') {
       ST.app.refreshFx(true);
     } else if (id === 'remindOn') {

@@ -253,14 +253,17 @@ let saveTimer = null;
    Encryption is asynchronous, so writes queue up in order. */
 let lockKey = null;
 let writing = Promise.resolve(true);
+/* bumped by wipe(): an encrypted write still in flight must not bring erased data back */
+let generation = 0;
 function setLockKey(k) { lockKey = k; }
 
 function saveNowAsync(state, storage) {
   clearTimeout(saveTimer);
   const ls = storage || window.localStorage;
   if (!lockKey) return Promise.resolve(saveNow(state, ls));
-  const key = lockKey, snapshot = JSON.stringify(state);
+  const key = lockKey, snapshot = JSON.stringify(state), gen = generation;
   writing = writing.then(function () { return ST.vault.seal(key, JSON.parse(snapshot)); }).then(function (env) {
+    if (gen !== generation) return false;
     const o = JSON.parse(env);
     o.locked = 1;
     try { ls.setItem(KEY, JSON.stringify(o)); return true; } catch (e) { return false; }
@@ -276,14 +279,39 @@ function saveNow(state, storage) {
 }
 function save(state, onError) {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(function () { if (!saveNow(state) && onError) onError(); }, 120);
+  saveTimer = setTimeout(function () {
+    if (lockKey) { saveNowAsync(state).then(function (ok) { if (!ok && onError) onError(); }); return; }
+    if (!saveNow(state) && onError) onError();
+  }, 120);
 }
 /* a save still queued would write old data straight back after a wipe */
 function cancelSave() { clearTimeout(saveTimer); }
 
+/* the saved data, and the v1 copy an upgrade left behind (or it would load again) */
 function wipe(storage) {
   cancelSave();
-  try { (storage || window.localStorage).removeItem(KEY); } catch (e) { /* storage blocked */ }
+  generation++;
+  const ls = storage || window.localStorage;
+  try { ls.removeItem(KEY); ls.removeItem(KEY_V1); } catch (e) { /* storage blocked */ }
+}
+
+/* everything Subtrackr keeps in this browser: the data, the lock, sign-in and sync
+   records, remembered keys and tokens (every subtrackr.* entry, and the keys kept
+   in IndexedDB). Other sites on the same origin keep theirs. */
+function eraseDevice(storage) {
+  wipe(storage);
+  lockKey = null;
+  const ls = storage || window.localStorage;
+  try {
+    const keys = [];
+    for (let i = 0; i < ls.length; i++) { const k = ls.key(i); if (k && k.indexOf('subtrackr.') === 0) keys.push(k); }
+    keys.forEach(function (k) { ls.removeItem(k); });
+  } catch (e) { /* storage blocked */ }
+  return new Promise(function (resolve) {
+    if (typeof indexedDB === 'undefined') return resolve();
+    const req = indexedDB.deleteDatabase('subtrackr-keys');
+    req.onsuccess = req.onerror = req.onblocked = function () { resolve(); };
+  });
 }
 
 function bytesUsed(storage) {
@@ -325,7 +353,7 @@ function merge(target, incoming) {
 
 ST.store = { KEY: KEY, KEY_V1: KEY_V1, VERSION: VERSION, CADENCES: CADENCES, TEXT_SIZES: TEXT_SIZES,
              freshState: freshState, sanitise: sanitise, migrate: migrate, load: load,
-             save: save, saveNow: saveNow, saveNowAsync: saveNowAsync, setLockKey: setLockKey, cancelSave: cancelSave, wipe: wipe, bytesUsed: bytesUsed,
+             save: save, saveNow: saveNow, saveNowAsync: saveNowAsync, setLockKey: setLockKey, cancelSave: cancelSave, wipe: wipe, eraseDevice: eraseDevice, bytesUsed: bytesUsed,
              exportPayload: exportPayload, parseImport: parseImport, merge: merge,
              cleanSub: cleanSub, cleanCard: cleanCard, cleanExpense: cleanExpense };
 

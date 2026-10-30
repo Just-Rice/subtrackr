@@ -41,6 +41,8 @@ function memoryStorage() {
     getItem: k => (m.has(k) ? m.get(k) : null),
     setItem: (k, v) => m.set(k, String(v)),
     removeItem: k => m.delete(k),
+    get length() { return m.size; },
+    key: i => Array.from(m.keys())[i] ?? null,
     dump: () => Object.fromEntries(m)
   };
 }

@@ -96,6 +96,7 @@ let phase = 'signed-out'; /* signed-out | loading | needs-key | sync-off | synci
 let message = '';
 let pushTimer = null;
 let running = null;
+let edits = 0;            /* counts local changes, so an upload knows whether it carried them all */
 const listeners = [];
 
 let keyRaw = null;        /* its raw bits, kept for this session only, so it can be re-stored sealed */
@@ -186,20 +187,20 @@ function watch() {
   window.addEventListener('online', function () { syncNow(); });
 }
 
+/* Browsers only allow a popup straight from a click. With the SDK already loaded
+   (preload() runs when the pointer reaches the button) the Google window opens in
+   the same turn as the click; otherwise it may be blocked, and a second click,
+   with the SDK now loaded, opens it. */
+function preload() { if (ST.firebase.available && !fb) start().catch(function () { /* tried again on click */ }); }
 function signIn() {
-  set('loading');
-  return start().then(function () {
-    const provider = new fb.auth.GoogleAuthProvider();
-    return fb.auth.signInWithPopup(fb.authInstance, provider).catch(function (err) {
-      if (err && err.code === 'auth/popup-blocked') return fb.auth.signInWithRedirect(fb.authInstance, provider);
-      throw err;
-    });
-  }).catch(function (err) {
+  function popup() { return fb.auth.signInWithPopup(fb.authInstance, new fb.auth.GoogleAuthProvider()); }
+  if (!fb) set('loading');
+  return (fb ? popup() : start().then(popup)).catch(function (err) {
     set(user ? phase : 'signed-out');
     const code = (err && err.code) || '';
     if (/popup-closed|cancelled-popup/.test(code)) return;
-    throw new Error(/unauthorized-domain/.test(code)
-      ? 'This web address isn’t allowed in the Firebase project (Authentication → Settings → Authorized domains).'
+    throw new Error(/popup-blocked/.test(code) ? 'Your browser blocked the Google sign-in window. Click Sign in with Google again.'
+      : /unauthorized-domain/.test(code) ? 'This web address isn’t allowed in the Firebase project (Authentication → Settings → Authorized domains).'
       : /network/.test(code) ? 'Could not reach Google. Check your connection.' : 'Sign-in did not work: ' + ((err && err.message) || code));
   });
 }
@@ -230,12 +231,15 @@ function remoteDoc() {
   return fb.store.getDoc(docRef()).then(function (snap) { return snap.exists() ? snap.data() : null; });
 }
 
+/* uploads a snapshot; a change made while it is on its way stays marked dirty
+   (and its own push follows), rather than being recorded as already sent */
 function push(state) {
-  const updatedAt = Date.now();
-  return ST.vault.seal(key, ST.store.exportPayload(state)).then(function (blob) {
+  const updatedAt = Date.now(), at = edits;
+  const sent = JSON.parse(JSON.stringify(state));
+  return ST.vault.seal(key, ST.store.exportPayload(sent)).then(function (blob) {
     return fb.store.setDoc(docRef(), { v: 1, blob: blob, salt: salt, iter: ST.vault.ITER, updatedAt: updatedAt, device: device() });
   }).then(function () {
-    writeMeta(Object.assign(readMeta(), { lastSyncedAt: updatedAt, dirty: false, salt: salt, base: fingerprint(state) }));
+    writeMeta(Object.assign(readMeta(), { lastSyncedAt: updatedAt, dirty: edits !== at, salt: salt, base: fingerprint(sent) }));
   });
 }
 
@@ -293,6 +297,7 @@ function syncNow() {
 
 /* every local save: upload a few seconds later */
 function changed() {
+  edits++;
   const m = readMeta();
   if (!m.uid) return;
   if (!m.dirty) writeMeta(Object.assign(m, { dirty: true }));
@@ -417,6 +422,9 @@ function wire() {
   function fail(err) { if (err && err.message !== 'cancelled') UI.toast(err.message || 'That did not work.'); }
   function rerender() { if (ST.app.route && ST.app.route.view === 'data') ST.views.data.render(); }
   onChange(rerender);
+  ['pointerover', 'focusin', 'touchstart'].forEach(function (type) {
+    UI.$('#dataRoot').addEventListener(type, function (e) { if (e.target.closest && e.target.closest('#signInBtn')) preload(); }, { passive: true });
+  });
   UI.$('#dataRoot').addEventListener('click', function (e) {
     const id = e.target.closest('button') && e.target.closest('button').id;
     if (id === 'signInBtn') {

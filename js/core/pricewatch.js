@@ -35,7 +35,7 @@ function alerts(st) {
         id: 'price:' + x.sub.id + ':' + x.ch.now.amount, priority: 4, tone: up ? 'warn' : 'info', date: '',
         title: x.sub.name + ' ' + x.sub.tierName + ' is now ' + M.fmtMoney(x.ch.now.amount, x.ch.now.cur),
         body: 'Was ' + M.fmtMoney(x.ch.was.amount, x.ch.was.cur) + ' when you added it — ' +
-              (up ? 'about ' : 'saves about ') + M.fmtMoney(Math.abs(x.ch.yearUsd), 'USD', { dec: 0 }) + ' a year' +
+              (up ? 'about ' : 'saves about ') + M.fmtUsdAs(Math.abs(x.ch.yearUsd), st.settings.currency, { dec: 0 }) + ' a year' +
               (up ? ' more' : '') + '. Update your amount?',
         action: { type: 'price', id: x.sub.id }
       };

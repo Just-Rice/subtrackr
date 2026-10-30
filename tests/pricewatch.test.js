@@ -18,6 +18,9 @@ test('a v1 Netflix sub added at the old list price surfaces the rise', () => {
   const alerts = W.alerts(st);
   assert.equal(alerts.length, 1);
   assert.match(alerts[0].title, /Netflix Standard is now \$19\.99/);
+  assert.match(alerts[0].body, /about \$24 a year more/);
+  st.settings.currency = 'GBP';
+  assert.match(W.alerts(st)[0].body, /about £\d+ a year more/, 'the yearly difference is in the currency you chose');
 });
 
 test('accepting the change updates or just acknowledges', () => {

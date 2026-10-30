@@ -60,7 +60,10 @@ const CYCLE_BY_ID = Object.fromEntries(CYCLES.map(function (c) { return [c.id, c
 
 function cycle(id) { return CYCLE_BY_ID[id] || CYCLE_BY_ID.monthly; }
 
+/* a USD total, shown in the currency the person chose */
+function fmtUsdAs(usd, cur, opts) { return fmtMoney(fromUsd(usd, cur), cur, opts); }
+
 ST.money = { setRates: setRates, rate: rate, toUsd: toUsd, fromUsd: fromUsd,
-             roundNice: roundNice, fmtMoney: fmtMoney, CYCLES: CYCLES, CYCLE_BY_ID: CYCLE_BY_ID, cycle: cycle };
+             roundNice: roundNice, fmtMoney: fmtMoney, fmtUsdAs: fmtUsdAs, CYCLES: CYCLES, CYCLE_BY_ID: CYCLE_BY_ID, cycle: cycle };
 
 })(window.ST = window.ST || {});
