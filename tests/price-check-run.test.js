@@ -72,3 +72,63 @@ test('the monthly check falls back across models, applies grounded changes and r
     fs.rmSync(report, { force: true });
   }
 });
+
+/* a stand-in for a free key that may not use Google Search: every request with
+   the search tool is refused, everything else answers */
+function noSearchGemini() {
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', c => { body += c; });
+    req.on('end', () => {
+      const tools = JSON.stringify(JSON.parse(body).tools || []);
+      res.setHeader('content-type', 'application/json');
+      if (/google_search/.test(tools)) {
+        res.statusCode = 429;
+        return res.end(JSON.stringify({ error: { status: 'RESOURCE_EXHAUSTED', message: 'Quota exceeded for metric: search_grounding_request, limit: 0' } }));
+      }
+      res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text: /url_context/.test(tools) ? 'Standard is $19.99' : 'OK' }] } }] }));
+    });
+  });
+  return server;
+}
+
+function runCheck(server, args) {
+  return new Promise((resolve, reject) => execFile(process.execPath, [path.join(ROOT, 'scripts/check-prices.mjs')].concat(args),
+    { env: Object.assign({}, process.env, { GEMINI_API_KEY: 'test', GEMINI_PACE_MS: '0', GEMINI_PROBE_PACE_MS: '0', GEMINI_API_BASE: 'http://127.0.0.1:' + server.address().port, GITHUB_OUTPUT: '' }) },
+    (err, stdout, stderr) => (err ? reject(new Error(stderr || err.message)) : resolve(stdout))));
+}
+
+test('when every model refuses, the report says so and quotes what Google said', async () => {
+  const server = noSearchGemini();
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const report = path.join(os.tmpdir(), 'subtrackr-refused-' + process.pid + '.md');
+  try {
+    await runCheck(server, ['--only', 'netflix', '--dry-run', '--report', report]);
+    const md = fs.readFileSync(report, 'utf8');
+    assert.match(md, /\*\*Stopped early: every model refused or was out of allowance/);
+    assert.match(md, /### What Google said/);
+    assert.match(md, /\*\*gemini-3\.8-flash\*\*: \[429\] RESOURCE_EXHAUSTED Quota exceeded for metric: search_grounding_request, limit: 0/);
+    assert.match(md, /\*\*gemini-3\.1-flash-lite\*\*/);
+  } finally {
+    server.close();
+    fs.rmSync(report, { force: true });
+  }
+});
+
+test('a probe reports which features each model allows, and changes nothing', async () => {
+  const server = noSearchGemini();
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const report = path.join(os.tmpdir(), 'subtrackr-probe-' + process.pid + '.md');
+  const catalogBefore = fs.readFileSync(path.join(ROOT, 'js/data/catalog.js'), 'utf8');
+  try {
+    await runCheck(server, ['--probe', '--report', report]);
+    const md = fs.readFileSync(report, 'utf8');
+    assert.match(md, /\| gemini-3\.8-flash \| plain answer \| works: OK \|/);
+    assert.match(md, /\| gemini-3\.8-flash \| Google Search \| refused: \[429\]/);
+    assert.match(md, /\| gemini-3\.1-flash-lite \| reading a page \| works: Standard is \$19\.99 \|/);
+    assert.equal(fs.readFileSync(path.join(ROOT, 'js/data/catalog.js'), 'utf8'), catalogBefore);
+  } finally {
+    server.close();
+    fs.rmSync(report, { force: true });
+  }
+});

@@ -11,6 +11,9 @@
  *     --dry-run                  report only; change no files
  *     --report <file>            where the report goes (default price-report.md)
  *     --limit <n>                stop after n requests
+ *     --probe                    just test which Gemini features this key can use
+ *                                (plain answers, Google Search, reading a page) on
+ *                                each model, and report what Google says
  *
  * Every request goes to the best model in js/data/gemini-models.js that still
  * has allowance and moves down the list as each runs out (js/core/gemini.js).
@@ -39,6 +42,7 @@ function args(argv) {
     else if (a === '--limit') o.limit = Number(argv[++i]);
     else if (a === '--services') o.cards = false;
     else if (a === '--cards') o.services = false;
+    else if (a === '--probe') o.probe = true;
   }
   return o;
 }
@@ -60,7 +64,8 @@ function loadApp(catalogSrc, cardsSrc) {
   run('js/data/cards.js', cardsSrc);
   run('js/data/gemini-models.js');
   run('js/core/gemini.js');
-  return { G: ctx.ST.gemini, catalog: vm.runInContext('CATALOG', ctx), cards: vm.runInContext('CARDS', ctx), regions: vm.runInContext('REGION_BY_CODE', ctx) };
+  return { G: ctx.ST.gemini, catalog: vm.runInContext('CATALOG', ctx), cards: vm.runInContext('CARDS', ctx), regions: vm.runInContext('REGION_BY_CODE', ctx),
+           models: vm.runInContext('GEMINI_MODELS', ctx) };
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -140,6 +145,34 @@ async function ask(G, key, model, prompt) {
   }
 }
 
+/* ── probe: which features does this key get on each model? ── */
+
+const PROBES = [
+  ['plain answer', { contents: [{ role: 'user', parts: [{ text: 'Reply with the single word OK.' }] }] }],
+  ['Google Search', { contents: [{ role: 'user', parts: [{ text: 'Search the web: what does Netflix Standard cost per month in the US today? One short line.' }] }], tools: [{ google_search: {} }] }],
+  ['reading a page', { contents: [{ role: 'user', parts: [{ text: 'From https://help.netflix.com/en/node/24926 only: what does Netflix Standard cost per month in the US? One short line.' }] }], tools: [{ url_context: {} }] }]
+];
+
+async function probe(G, key, models, reportFile) {
+  const rows = [];
+  for (const model of models) {
+    for (const [what, body] of PROBES) {
+      let result;
+      try {
+        const r = await G.generate(key, model, body);
+        result = 'works' + (r.grounding.length ? ' (' + r.grounding.length + ' sources)' : '') + ': ' + r.text.trim().replace(/\s+/g, ' ').slice(0, 80);
+      } catch (e) { result = 'refused: ' + String(e.message).replace(/\s+/g, ' ').slice(0, 300); }
+      console.log(model + ' · ' + what + ' → ' + result);
+      rows.push('| ' + model + ' | ' + what + ' | ' + result.replace(/\|/g, '\\|') + ' |');
+      await sleep(Number(process.env.GEMINI_PROBE_PACE_MS || 4000));
+    }
+  }
+  const report = ['## Gemini probe', '', 'What this key can use on each model. Nothing was changed.', '',
+    '| Model | Feature | Result |', '|---|---|---|', ...rows, ''].join('\n');
+  fs.writeFileSync(reportFile, report);
+  if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, 'changed=0\nreview=0\nmonth=probe\n');
+}
+
 /* ── main ── */
 
 async function main() {
@@ -152,6 +185,7 @@ async function main() {
   let cardsSrc = fs.readFileSync(CARDS_FILE, 'utf8');
   const app = loadApp(catalogSrc, cardsSrc);
   const { G } = app;
+  if (o.probe) return probe(G, key, app.models, o.report);
 
   const applied = [], human = [], notes = [], failed = [], used = new Set();
   let checked = 0, unconfirmed = 0, requests = 0, stopped = '';
@@ -160,10 +194,18 @@ async function main() {
   const services = o.services ? app.catalog.filter(s => s.site && !s.fallbackOnly && want(s.id)) : [];
   const cards = o.cards ? app.cards.filter(c => c.site && want(c.id)) : [];
 
+  const refusals = new Map();     /* model → what Google last said when it refused */
   async function request(prompt) {
     if (requests >= o.limit) throw new Error('limit');
     if (requests++) await sleep(PACE_MS);
-    const r = await G.withModels('ci', model => ask(G, key, model, prompt));
+    const r = await G.withModels('ci', async model => {
+      try { return await ask(G, key, model, prompt); }
+      catch (e) {
+        refusals.set(model, String(e.message).replace(/\s+/g, ' ').slice(0, 300));
+        console.log('  ' + model + ' refused: ' + refusals.get(model));
+        throw e;
+      }
+    });
     used.add(r.model);
     return r.value;
   }
@@ -174,8 +216,8 @@ async function main() {
     let res;
     try { res = await request(prompt.text); }
     catch (e) {
-      if (e.message === 'limit') { stopped = 'stopped at the --limit of ' + o.limit + ' requests'; break; }
-      if (G.modelProblem(e)) { stopped = G.modelProblem(e) === 'network' ? 'Gemini could not be reached' : 'every model’s free allowance ran out'; break; }
+      if (e.message === 'limit') { stopped = 'it reached the --limit of ' + o.limit + ' requests'; break; }
+      if (G.modelProblem(e)) { stopped = G.modelProblem(e) === 'network' ? 'Gemini could not be reached' : 'every model refused or was out of allowance (see What Google said)'; break; }
       failed.push(svc.name + ': ' + e.message); continue;
     }
     checked++;
@@ -210,8 +252,8 @@ async function main() {
     let res;
     try { res = await request(cardPrompt(card, today)); }
     catch (e) {
-      if (e.message === 'limit') { stopped = 'stopped at the --limit of ' + o.limit + ' requests'; break; }
-      if (G.modelProblem(e)) { stopped = G.modelProblem(e) === 'network' ? 'Gemini could not be reached' : 'every model’s free allowance ran out'; break; }
+      if (e.message === 'limit') { stopped = 'it reached the --limit of ' + o.limit + ' requests'; break; }
+      if (G.modelProblem(e)) { stopped = G.modelProblem(e) === 'network' ? 'Gemini could not be reached' : 'every model refused or was out of allowance (see What Google said)'; break; }
       failed.push(card.name + ': ' + e.message); continue;
     }
     checked++;
@@ -255,7 +297,7 @@ async function main() {
     'Checked ' + checked + ' of ' + (services.length + cards.length) + ' services and cards with Gemini and Google Search' +
       (used.size ? ' (' + [...used].join(', ') + ')' : '') + '. ' +
       applied.length + ' figures changed, ' + human.length + ' need a human look, ' + unconfirmed + ' could not be confirmed and were left as they were.' +
-      (stopped ? ' **The run ' + stopped + '**, so the rest wait for next month or a manual run.' : '') +
+      (stopped ? ' **Stopped early: ' + stopped + '**, so the rest wait for next month or a manual run.' : '') +
       (o.dryRun ? ' This was a dry run: no files were changed.' : ''), '',
     '### Changed', '',
     applied.length ? '| What | Was | Now | Source |\n|---|---|---|---|\n' + applied.map(it => '| ' + cell(it.label) + ' | ' + it.current + ' | ' + it.proposed + ' | ' + link(it) + ' |').join('\n') : 'Nothing.', '',
@@ -263,7 +305,9 @@ async function main() {
     human.length ? '| What | Now | Gemini says | Why it was held back | Source |\n|---|---|---|---|---|\n' + human.map(it => '| ' + cell(it.label) + ' | ' + it.current + ' | ' + it.proposed + ' | ' + cell(it.why) + ' | ' + link(it) + ' |').join('\n') : 'Nothing.', '',
     '### Notes from Gemini', '',
     notes.length ? notes.map(n => '- ' + cell(n)).join('\n') : 'None.', ''
-  ].concat(failed.length ? ['### Failed requests', '', failed.map(f => '- ' + cell(f)).join('\n'), ''] : []).join('\n');
+  ].concat(failed.length ? ['### Failed requests', '', failed.map(f => '- ' + cell(f)).join('\n'), ''] : [])
+   .concat(refusals.size ? ['### What Google said', '', 'The last refusal from each model that turned a request down:', '',
+     [...refusals].map(([m, msg]) => '- **' + m + '**: ' + cell(msg)).join('\n'), ''] : []).join('\n');
   fs.writeFileSync(o.report, report);
   console.log('\n' + report);
   if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, 'changed=' + applied.length + '\nreview=' + human.length + '\nmonth=' + ym + '\n');
