@@ -1,11 +1,12 @@
 name: Price check
 
-# Once a month Gemini, with Google Search, checks every catalogue price and the
-# terms of every built-in card (scripts/check-prices.mjs). Changes it can back
-# with a page from the search open a pull request for a person to review;
-# nothing is merged automatically. Needs the GEMINI_API_KEY repository secret,
-# and "Allow GitHub Actions to create and approve pull requests" turned on in
-# Settings → Actions → General.
+# Once a month Gemini reads each provider's own pricing page and checks every
+# catalogue price and the terms of every built-in card (scripts/check-prices.mjs).
+# Changes it can back with a page it read open a pull request for a person to
+# review; nothing is merged automatically. Works on a free Gemini key (reading
+# pages is free; Google Search grounding would need billing). Needs the
+# GEMINI_API_KEY repository secret, and "Allow GitHub Actions to create and
+# approve pull requests" turned on in Settings → Actions → General.
 on:
   schedule:
     - cron: '17 6 1 * *'
@@ -35,7 +36,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

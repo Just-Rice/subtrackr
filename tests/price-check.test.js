@@ -83,8 +83,20 @@ test('guardrails: only grounded, sane, modest changes apply', async () => {
   assert.equal(r.apply[0].official, true);
   assert.deepEqual(r.confirmed.map(x => x.label), ['Standard US']);
   assert.deepEqual(r.human.map(x => x.label + ': ' + x.why), [
-    'Basic US: source madeup.example was not among the search results',
+    'Basic US: source madeup.example was not among the pages read',
     'Ads US: moved more than 40%',
     'Mobile IN: INR prices are whole numbers'
   ]);
+});
+
+test('a page counts as the provider’s own on its domain, a subdomain or a country domain of the same name', async () => {
+  const R = await import('../scripts/lib/price-review.mjs');
+  assert.equal(R.isOfficial('https://help.netflix.com/en/node/24926', 'netflix.com'), true);
+  assert.equal(R.isOfficial('https://www.amazon.co.uk/amazonprime', 'amazon.com'), true);
+  assert.equal(R.isOfficial('https://www.americanexpress.com/en-gb/credit-cards/gold/', 'americanexpress.com/uk'), true);
+  assert.equal(R.isOfficial('https://www.cnet.com/tech/netflix-prices/', 'netflix.com'), false);
+  assert.equal(R.isOfficial('https://netflix.example.com/prices', 'netflix.com'), false);
+  assert.equal(R.isOfficial('not a url', 'netflix.com'), false);
+  assert.equal(R.brandOf('www.disneyplus.com'), 'disneyplus');
+  assert.equal(R.brandOf('apple.co.jp'), 'apple');
 });
