@@ -85,7 +85,7 @@ function tips(st) {
     const cpu = costPerUse(s);
     if (!cpu || cpu.uses > 4 || cpu.usd < 3) return;
     out.push({ id: 'use:' + s.id, kind: 'lowuse', saveUsd: L.monthlyUsd(s) * 12,
-      title: s.name + ' costs ' + M.fmtMoney(cpu.usd, 'USD') + ' a use',
+      title: s.name + ' costs ' + M.fmtUsdAs(cpu.usd, st.settings.currency) + ' a use',
       body: U.plural(cpu.uses, 'use') + ' in ' + D.fmtMonth(cpu.month) + '. Worth pausing?' });
   });
 

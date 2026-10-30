@@ -200,31 +200,52 @@ and nothing is loaded from Google; AI with your own key works either way.
 ## Keeping prices fresh
 
 `.github/workflows/prices.yml` runs `scripts/check-prices.mjs` on the 1st of every
-month. It asks Gemini, with Google Search, for the current list price of every plan in
-every market the catalogue carries, and the current fee, welcome offer and credits of
-every built-in card. A figure is changed only when its source page was among the
-search results Gemini actually used, it is a sane amount for its currency and it moved
-by 40% or less; everything else is listed for a person to check. Plans, markets and
-credits are never added or removed automatically. The result is a pull request with a
-table of every change and its source — nothing merges by itself.
+month. Gemini reads each provider's own pricing page and reports the current list
+price of every plan in every market the catalogue carries, and the current fee,
+welcome offer and credits of every built-in card. It works on a free Gemini key:
+reading pages (Gemini's URL tool) is free, while Google Search grounding needs a
+billed project, so the check doesn't use it.
+
+Which page to read is kept in `scripts/data/pricing-pages.json`. For a market with
+no page yet, Gemini suggests one first, and only a page on the provider's own website
+is accepted (its country domains count, so amazon.co.uk for Amazon). A page that was
+read and showed prices is saved for next month; one that couldn't be read or showed
+none is dropped and looked for again.
+
+A figure is changed only when its source is a page Gemini actually read, it is a sane
+amount for its currency and it moved by 40% or less; everything else is listed for a
+person to check. Plans, markets and credits are never added or removed automatically.
+The result is a pull request with a table of every change and its source — nothing
+merges by itself. Services and cards checked longest ago go first, so a run cut short
+by the free daily allowance still reaches the stalest ones; the rest wait for the next
+run.
 
 Setup, once:
 
-1. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/apikey).
+1. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/apikey),
+   in a project of its own (free allowances are per project, so this keeps the site's
+   own Gemini allowance for the people using it). Don't add billing.
 2. **Settings → Secrets and variables → Actions → New repository secret**:
    `GEMINI_API_KEY`.
 3. **Settings → Actions → General → Workflow permissions**: tick **Allow GitHub
    Actions to create and approve pull requests**.
 
 To try it: **Actions → Price check → Run workflow**, with **Dry run** ticked and, say,
-`netflix,amex-gold` in **Only**. Locally:
+`netflix,amex-gold` in **Only**. **Probe** instead tests which Gemini features the key
+can use on each model (plain answers, Google Search, reading a page) and changes
+nothing. Locally:
 
 ```sh
 GEMINI_API_KEY=… node scripts/check-prices.mjs --only netflix,spotify --dry-run
+GEMINI_API_KEY=… node scripts/check-prices.mjs --probe
 ```
 
-A run makes about 165 requests, paced to stay inside the free per-minute limits, and
-moves to the next model when one's daily allowance runs out.
+The first full run makes about 330 requests (one to find each service's pages, one to
+read them); later runs about 165, paced to stay inside the free per-minute limits, and
+move to the next model when one's daily allowance runs out. A request that gets no
+reply in 90 seconds is given up and the next model is asked. A run stops itself after
+4½ hours (inside GitHub's limit) and still opens its pull request with what it did,
+pages learned included; the rest, stalest first, wait for the next run.
 
 ## Logos
 
@@ -395,7 +416,7 @@ js/cloud/                      firebase (loads the SDK on demand), account (sign
 js/views/                      overview, subs, cards, spending, calendar, data
 js/app.js                      state, routing, settings, reminders, boot
 tests/                         node --test suites
-scripts/                       fetch-logos.mjs, check-prices.mjs (+ lib/ patcher and guardrails)
+scripts/                       fetch-logos.mjs, check-prices.mjs (+ lib/ patcher and guardrails, data/pricing-pages.json)
 firestore.rules                who may read and write the encrypted copies
 .github/workflows/             pages.yml publishes; test.yml runs the tests; prices.yml checks prices monthly
 ```

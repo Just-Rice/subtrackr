@@ -20,7 +20,31 @@ test('amounts in every shape statements use', () => {
   assert.equal(p('1.234,56'), 1234.56);
   assert.equal(p('₹ 1,23,456'), 123456);
   assert.equal(p('£4.5'), 4.5);
+  assert.equal(p('−12.00'), -12, 'a typographic minus');
   assert.equal(p(''), null);
+});
+
+test('two identical purchases on one day both count; importing the file again adds neither', () => {
+  const ctx = load();
+  const rows = ctx.ST.csv.parse('Date,Description,Amount\n10/01/2026,MTA*NYCT PAYGO,2.90\n10/01/2026,MTA*NYCT PAYGO,2.90\n10/02/2026,Pret A Manger,6.50');
+  const map = ctx.ST.csv.guessMapping(rows, 'US');
+  const st = ctx.ST.store.freshState();
+  const first = ctx.ST.csv.toExpenses(rows, map, { cur: 'USD', st });
+  assert.equal(first.expenses.length, 3);
+  assert.equal(first.duplicates, 0);
+  st.expenses.push(...first.expenses);
+  const again = ctx.ST.csv.toExpenses(rows, map, { cur: 'USD', st });
+  assert.equal(again.expenses.length, 0);
+  assert.equal(again.duplicates, 3);
+});
+
+test('a short subscription name only matches as a word of its own', () => {
+  const ctx = load();
+  const st = ctx.ST.store.migrate({ version: 2, subs: [{ id: 'm', name: 'Max', amount: 9.99, cur: 'USD' }, { id: 'n', name: 'Netflix', amount: 19.99, cur: 'USD' }] });
+  const m = merchant => (ctx.ST.csv.matchSub(st, merchant) || {}).id || null;
+  assert.equal(m('MAX.COM 855-442-6629'), 'm');
+  assert.equal(m("MAXWELL'S CAFE"), null);
+  assert.equal(m('NETFLIXCOM LOS GATOS'), 'n', 'a longer name may run into other text');
 });
 
 test('dates: ISO, named months, and day/month order from the data', () => {
@@ -95,6 +119,8 @@ test('budgets compare a month of spending, subscriptions included', () => {
   const a = ctx.ST.budgets.alerts(st);
   assert.equal(a.length, 1);
   assert.match(a[0].title, /Dining out is \$30 over budget/);
+  st.settings.currency = 'GBP';
+  assert.match(ctx.ST.budgets.alerts(st)[0].title, /Dining out is £\d+ over budget/, 'shown in the currency you chose');
 });
 
 test('recurring charges that look like an untracked subscription', () => {

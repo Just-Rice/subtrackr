@@ -623,6 +623,8 @@ function wire() {
     else if (act === 'del') {
       if (confirm('Remove ' + sub.name + ' from your tracked subscriptions?')) {
         st().subs = st().subs.filter(function (s) { return s.id !== sub.id; });
+        /* its statement lines count as spending again */
+        st().expenses.forEach(function (x) { if (x.subId === sub.id) x.subId = ''; });
         ST.app.save(); ST.app.render(); UI.toast('Removed.');
       }
     }

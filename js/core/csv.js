@@ -47,7 +47,8 @@ function parse(text) {
 
 /* "$1,234.56", "(12.00)", "-12.00", "12.00 CR", "1.234,56", "₹ 1,23,456" → number */
 function parseAmount(s) {
-  let t = String(s == null ? '' : s).trim();
+  /* a typographic minus (−) or dash counts as a minus sign */
+  let t = String(s == null ? '' : s).trim().replace(/[\u2212\u2013\u2014]/g, '-');
   if (!t) return null;
   let neg = false;
   if (/^\(.*\)$/.test(t)) { neg = true; t = t.slice(1, -1); }
@@ -198,13 +199,18 @@ function guessCategory(merchant) {
   return 'other';
 }
 
-/* a statement line that is one of your tracked subscriptions */
+/* a statement line that is one of your tracked subscriptions. A short name has
+   to stand as its own word ("MAX.COM", not "MAXWELL'S CAFE"); a longer one may
+   sit inside run-together text ("NETFLIXCOM"). */
 function matchSub(st, merchant) {
-  const m = norm(merchant).replace(/\s/g, '');
+  const words = norm(merchant);
+  const m = words.replace(/\s/g, '');
   if (!m) return null;
   return st.subs.filter(function (s) {
     const n = norm(s.name).replace(/\s/g, '').replace(/\+/g, '');
-    return n.length >= 3 && m.indexOf(n) !== -1;
+    if (n.length < 3) return false;
+    if (n.length >= 6) return m.indexOf(n) !== -1;
+    return new RegExp('(^|[^a-z0-9])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^a-z0-9]|$)').test(words);
   })[0] || null;
 }
 
@@ -214,12 +220,15 @@ function dedupeKey(e) {
   return e.date + '|' + Math.round(e.amount * 100) + '|' + norm(e.merchant).replace(/\s/g, '').slice(0, 18);
 }
 
-/* opts: { cur, cardId, st } → { expenses, skipped, duplicates } */
+/* opts: { cur, cardId, st } → { expenses, skipped, duplicates }
+   A line is a duplicate when an expense already saved matches it, one for one:
+   importing the same statement twice adds nothing, while two identical
+   purchases on one day (two bus fares) both count. */
 function toExpenses(rows, map, opts) {
   const o = opts || {};
   const body = map.hasHeader ? rows.slice(1) : rows;
   const seen = {};
-  if (o.st) o.st.expenses.forEach(function (e) { seen[dedupeKey(e)] = true; });
+  if (o.st) o.st.expenses.forEach(function (e) { const k = dedupeKey(e); seen[k] = (seen[k] || 0) + 1; });
   const out = [];
   let skipped = 0, duplicates = 0, credits = 0;
   body.forEach(function (r) {
@@ -243,8 +252,7 @@ function toExpenses(rows, map, opts) {
       cardId: o.cardId || (sub ? sub.paidWith : ''), subId: sub ? sub.id : '', source: 'csv'
     });
     const k = dedupeKey(e);
-    if (seen[k]) { duplicates++; return; }
-    seen[k] = true;
+    if (seen[k]) { seen[k]--; duplicates++; return; }
     out.push(e);
   });
   return { expenses: out, skipped: skipped, duplicates: duplicates, credits: credits };

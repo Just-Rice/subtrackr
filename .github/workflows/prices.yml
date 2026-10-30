@@ -1,11 +1,12 @@
 name: Price check
 
-# Once a month Gemini, with Google Search, checks every catalogue price and the
-# terms of every built-in card (scripts/check-prices.mjs). Changes it can back
-# with a page from the search open a pull request for a person to review;
-# nothing is merged automatically. Needs the GEMINI_API_KEY repository secret,
-# and "Allow GitHub Actions to create and approve pull requests" turned on in
-# Settings → Actions → General.
+# Once a month Gemini reads each provider's own pricing page and checks every
+# catalogue price and the terms of every built-in card (scripts/check-prices.mjs).
+# Changes it can back with a page it read open a pull request for a person to
+# review; nothing is merged automatically. Works on a free Gemini key (reading
+# pages is free; Google Search grounding would need billing). Needs the
+# GEMINI_API_KEY repository secret, and "Allow GitHub Actions to create and
+# approve pull requests" turned on in Settings → Actions → General.
 on:
   schedule:
     - cron: '17 6 1 * *'
@@ -17,6 +18,10 @@ on:
         default: ''
       dry_run:
         description: 'Dry run: write the report, change nothing'
+        type: boolean
+        default: false
+      probe:
+        description: 'Probe only: test which Gemini features the key can use on each model (changes nothing)'
         type: boolean
         default: false
 
@@ -31,7 +36,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,17 +48,21 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ONLY: ${{ inputs.only }}
           DRY_RUN: ${{ inputs.dry_run }}
+          PROBE: ${{ inputs.probe }}
         run: |
           set -euo pipefail
           extra=()
           if [ -n "${ONLY:-}" ]; then extra+=(--only "$ONLY"); fi
           if [ "${DRY_RUN:-false}" = "true" ]; then extra+=(--dry-run); fi
-          node scripts/check-prices.mjs --report "$RUNNER_TEMP/price-report.md" "${extra[@]}"
+          if [ "${PROBE:-false}" = "true" ]; then extra+=(--probe); fi
+          # stop cleanly well inside the job's time limit, so what was done still opens a pull request
+          node scripts/check-prices.mjs --minutes 270 --report "$RUNNER_TEMP/price-report.md" "${extra[@]}"
           cat "$RUNNER_TEMP/price-report.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Tests still pass with the new figures
+        if: inputs.probe != true
         run: npm test
       - name: Open a pull request
-        if: steps.check.outputs.changed != '0' && inputs.dry_run != true
+        if: steps.check.outputs.changed != '0' && inputs.dry_run != true && inputs.probe != true
         uses: peter-evans/create-pull-request@v7
         with:
           branch: bot/prices-${{ steps.check.outputs.month }}

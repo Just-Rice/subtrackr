@@ -236,9 +236,8 @@ function showLockScreen(envelope) {
       if (!b) return;
       if (b.dataset.unlock === 'passkey') attempt('passkey');
       else if (b.dataset.unlock === 'erase' && confirm('Erase everything Subtrackr saved on this device? This cannot be undone.')) {
-        ST.store.wipe();
-        clear();
-        location.reload();
+        dataKey = null;
+        ST.store.eraseDevice().then(function () { location.reload(); });
       }
     });
     el.addEventListener('submit', function (e) {

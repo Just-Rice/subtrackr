@@ -22,9 +22,10 @@ function status(st, key) {
 function alerts(st) {
   const key = D.monthKey(D.todayStr());
   return status(st, key).filter(function (s) { return s.over; }).map(function (s) {
+    const cur = st.settings.currency;
     return { id: 'budget:' + s.budget.cat + ':' + key, priority: 3, tone: 'warn', date: '',
-      title: s.cat.name + ' is ' + M.fmtMoney(s.spentUsd - s.limitUsd, 'USD', { dec: 0 }) + ' over budget',
-      body: M.fmtMoney(s.spentUsd, 'USD', { dec: 0 }) + ' of ' + M.fmtMoney(s.limitUsd, 'USD', { dec: 0 }) + ' this month.',
+      title: s.cat.name + ' is ' + M.fmtUsdAs(s.spentUsd - s.limitUsd, cur, { dec: 0 }) + ' over budget',
+      body: M.fmtUsdAs(s.spentUsd, cur, { dec: 0 }) + ' of ' + M.fmtUsdAs(s.limitUsd, cur, { dec: 0 }) + ' this month.',
       action: { type: 'budget' } };
   });
 }

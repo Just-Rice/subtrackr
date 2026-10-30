@@ -90,6 +90,7 @@ function describeAccountError(err) {
   if (/high demand|overloaded|unavailable|\b50[03]\b/i.test(msg)) return 'Gemini is very busy right now. Try again in a minute.';
   if (/app.?check/i.test(msg)) return 'This copy of Subtrackr isn’t registered with Firebase App Check, so Gemini refused. Use your own Gemini key instead.';
   if (/\b401\b|unauthenticated|authentication credential/i.test(msg)) return 'Your sign-in has expired. Sign in again in Your data, then try once more.';
+  if (/timed? ?out|timeout/i.test(msg)) return 'Gemini took too long to answer. Try again in a moment.';
   if (/network|offline|failed to fetch/i.test(msg)) return 'Could not reach Gemini. Check your internet connection.';
   return 'Gemini could not answer: ' + msg;
 }

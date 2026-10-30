@@ -128,7 +128,9 @@ app.refreshFx = function (manual) {
       });
       app.state.fx = { rates: keep, at: Date.now() };
       M.setRates(keep);
-      app.save();
+      /* saved here, but not a change to sync: every device refreshes rates on its
+         own, and counting that would make two devices "both changed" every day */
+      S.save(app.state, function () { UI.toast('Could not save — browser storage is unavailable.'); });
       app.render();
       if (manual) UI.toast('Exchange rates updated.');
       return true;
@@ -289,6 +291,9 @@ function boot(loaded) {
   } else if (loaded.from === 'blocked') {
     UI.toast('Browser storage is blocked here — nothing you add will be saved.');
   }
+  try {
+    if (sessionStorage.getItem('subtrackr.erased')) { sessionStorage.removeItem('subtrackr.erased'); UI.toast('Everything erased.'); }
+  } catch (e) { /* storage blocked */ }
 
   if (ST.account) ST.account.init();   /* only does anything for someone who signed in before */
   if (fxAgeHours() > 12) app.refreshFx(false);

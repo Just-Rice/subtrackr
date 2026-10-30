@@ -7,7 +7,7 @@
  * index.html so a new script cannot be left out.
  */
 
-const VERSION = 'subtrackr-v3-2';
+const VERSION = 'subtrackr-v3-3';
 
 const SHELL = [
   './',
@@ -56,8 +56,12 @@ const SHELL = [
   'js/app.js'
 ];
 
+/* fetched past the browser's HTTP cache (GitHub Pages lets it keep files for ten
+   minutes), so a new version never caches old copies alongside new ones */
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil(caches.open(VERSION).then(function (c) {
+    return c.addAll(SHELL.map(function (u) { return new Request(u, { cache: 'reload' }); }));
+  }).then(function () { return self.skipWaiting(); }));
 });
 
 self.addEventListener('activate', function (e) {

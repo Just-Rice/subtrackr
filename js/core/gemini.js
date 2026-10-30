@@ -47,14 +47,14 @@ function skip(scope, name, until) {
 
 /* what a failure says about its model: used up for the day, busy for the
    minute (or overloaded), not available, no reply at all ('network': offline,
-   or a gateway error that came back without CORS headers), or null for a real
+   timed out, or a gateway error that came back without CORS headers), or null for a real
    failure that another model would not fix */
 function modelProblem(err) {
   const msg = String((err && err.message) || err);
   if (/\b429\b|RESOURCE_EXHAUSTED|quota|exhausted/i.test(msg)) return /per.?day|PerDay|daily/i.test(msg) ? 'day' : 'minute';
   if (/\b404\b|NOT_FOUND|is not found|not supported for generateContent/i.test(msg)) return 'missing';
   if (/\b50[03]\b|UNAVAILABLE|overloaded|high demand/i.test(msg)) return 'minute';
-  if (/failed to fetch|fetch failed|NetworkError|Load failed/i.test(msg)) return 'network';
+  if (/failed to fetch|fetch failed|NetworkError|Load failed|timed out/i.test(msg)) return 'network';
   return null;
 }
 
@@ -83,12 +83,17 @@ async function withModels(scope, request, opts) {
 
 function resetSpent() { writeSpent({}); }
 
-/* one generateContent call with an API key → { text, grounding: [{ uri, title }] } */
+/* one generateContent call with an API key →
+   { text, grounding: [{ uri, title }], pages: [{ url, status }] (pages read with the url_context tool) } */
+const TIMEOUT_MS = 90000;   /* a reply that never comes would otherwise spin forever */
 async function generate(key, model, body) {
   const res = await fetch(API + encodeURIComponent(model) + ':generateContent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(TIMEOUT_MS) : undefined
+  }).catch(function (e) {
+    throw e && e.name === 'TimeoutError' ? new Error('No reply from ' + model + ' within ' + TIMEOUT_MS / 1000 + ' seconds (timed out)') : e;
   });
   const data = await res.json().catch(function () { return {}; });
   if (!res.ok) {
@@ -98,7 +103,8 @@ async function generate(key, model, body) {
   const cand = (data.candidates || [])[0] || {};
   const text = ((cand.content || {}).parts || []).map(function (p) { return p.text || ''; }).join('');
   const chunks = ((cand.groundingMetadata || {}).groundingChunks || []).map(function (c) { return c.web || {}; });
-  return { text: text, grounding: chunks.map(function (w) { return { uri: w.uri || '', title: w.title || '' }; }) };
+  const pages = ((cand.urlContextMetadata || {}).urlMetadata || []).map(function (u) { return { url: u.retrievedUrl || '', status: u.urlRetrievalStatus || '' }; });
+  return { text: text, grounding: chunks.map(function (w) { return { uri: w.uri || '', title: w.title || '' }; }), pages: pages };
 }
 
 /* JSON out of a model's reply, tolerating a ```json fence or prose around it */
@@ -116,6 +122,7 @@ function describeKeyError(err) {
   if (/\b429\b|RESOURCE_EXHAUSTED|quota/i.test(msg)) return 'Your Gemini key’s free allowance is used up on every model for now. Try again in a minute, or tomorrow.';
   if (/\b403\b|PERMISSION_DENIED/i.test(msg)) return 'Your Gemini key isn’t allowed to use these models. In Google AI Studio, check the key’s project can use the Gemini API.';
   if (/\b50[03]\b|UNAVAILABLE|overloaded|high demand/i.test(msg)) return 'Gemini is very busy right now. Try again in a minute.';
+  if (/timed out/i.test(msg)) return 'Gemini took too long to answer. Try again in a moment.';
   if (/failed to fetch|network/i.test(msg)) return 'Could not reach Gemini. Check your internet connection.';
   return 'Gemini could not answer: ' + msg;
 }

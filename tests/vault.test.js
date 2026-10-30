@@ -92,3 +92,24 @@ test('locked saves are ciphertext, and open again with the data key', async () =
   await assert.rejects(L.unwrapWithPassphrase(w, 'WRONG23456'));
   S.setLockKey(null);
 });
+
+test('erasing stops an encrypted save still on its way from bringing the data back', async () => {
+  const ctx = load();
+  const S = ctx.ST.store, V = ctx.ST.vault;
+  S.setLockKey(await V.fromRaw(V.random(32)));
+  const pending = S.saveNowAsync(S.migrate({ version: 2, subs: [{ id: 'n', name: 'Netflix', amount: 9, cur: 'USD' }] }), ctx.storage);
+  S.wipe(ctx.storage);
+  assert.equal(await pending, false);
+  assert.equal(ctx.storage.getItem(S.KEY), null);
+  S.setLockKey(null);
+});
+
+test('erasing the device removes every subtrackr entry, the v1 copy included, and leaves other sites alone', async () => {
+  const ctx = load();
+  const S = ctx.ST.store;
+  ['subtrackr.v2', 'subtrackr.v1', 'subtrackr.lock', 'subtrackr.cloud', 'subtrackr.ai', 'subtrackr.sync', 'testprep.progress']
+    .forEach(k => ctx.storage.setItem(k, '{}'));
+  await S.eraseDevice(ctx.storage);
+  assert.deepEqual(Object.keys(ctx.storage.dump()), ['testprep.progress']);
+  assert.equal(S.load(ctx.storage).from, 'new', 'nothing comes back on the next load');
+});
