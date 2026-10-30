@@ -69,6 +69,7 @@ function loadApp(catalogSrc, cardsSrc) {
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const oneLine = e => String((e && e.message) || e).replace(/\s+/g, ' ').slice(0, 300);
 const round = (v, cur) => (['JPY', 'INR', 'KRW'].includes(cur) ? Math.round(v) : Math.round(v * 100) / 100);
 
 /* ── prompts ── */
@@ -153,18 +154,30 @@ const PROBES = [
   ['reading a page', { contents: [{ role: 'user', parts: [{ text: 'From https://help.netflix.com/en/node/24926 only: what does Netflix Standard cost per month in the US? One short line.' }] }], tools: [{ url_context: {} }] }]
 ];
 
+/* "works" only when the feature was really used: search sources came back, or the page was read */
+function probeResult(what, r) {
+  const text = r.text.trim().replace(/\s+/g, ' ').slice(0, 80);
+  if (!text) return 'empty answer';
+  if (what === 'Google Search' && !r.grounding.length) return 'answered without searching: ' + text;
+  if (what === 'reading a page' && !r.pages.some(u => /SUCCESS/.test(u.status))) return 'answered without reading the page: ' + text;
+  return 'works' + (r.grounding.length ? ' (' + r.grounding.length + ' sources)' : '') + ': ' + text;
+}
+
 async function probe(G, key, models, reportFile) {
   const rows = [];
+  let sent = 0;
   for (const model of models) {
     for (const [what, body] of PROBES) {
-      let result;
-      try {
-        const r = await G.generate(key, model, body);
-        result = 'works' + (r.grounding.length ? ' (' + r.grounding.length + ' sources)' : '') + ': ' + r.text.trim().replace(/\s+/g, ' ').slice(0, 80);
-      } catch (e) { result = 'refused: ' + String(e.message).replace(/\s+/g, ' ').slice(0, 300); }
+      if (sent++) await sleep(Number(process.env.GEMINI_PROBE_PACE_MS || 4000));
+      let result, missing = false;
+      try { result = probeResult(what, await G.generate(key, model, body)); }
+      catch (e) {
+        missing = G.modelProblem(e) === 'missing';
+        result = (missing ? 'model not available: ' : 'refused: ') + oneLine(e);
+      }
       console.log(model + ' · ' + what + ' → ' + result);
-      rows.push('| ' + model + ' | ' + what + ' | ' + result.replace(/\|/g, '\\|') + ' |');
-      await sleep(Number(process.env.GEMINI_PROBE_PACE_MS || 4000));
+      rows.push('| ' + model + ' | ' + (missing ? 'any' : what) + ' | ' + result.replace(/\|/g, '\\|') + ' |');
+      if (missing) break;
     }
   }
   const report = ['## Gemini probe', '', 'What this key can use on each model. Nothing was changed.', '',
@@ -201,13 +214,20 @@ async function main() {
     const r = await G.withModels('ci', async model => {
       try { return await ask(G, key, model, prompt); }
       catch (e) {
-        refusals.set(model, String(e.message).replace(/\s+/g, ' ').slice(0, 300));
-        console.log('  ' + model + ' refused: ' + refusals.get(model));
+        /* only Google's own word that this model can't take the request now */
+        const p = G.modelProblem(e);
+        if (p && p !== 'network') { refusals.set(model, oneLine(e)); console.log('  ' + model + ' refused: ' + oneLine(e)); }
         throw e;
       }
     });
     used.add(r.model);
     return r.value;
+  }
+  /* why a failed request ends the run, or '' when only that item failed */
+  function stopReason(e) {
+    if (e.message === 'limit') return 'it reached the --limit of ' + o.limit + ' requests';
+    const p = G.modelProblem(e);
+    return !p ? '' : p === 'network' ? 'Gemini could not be reached' : 'every model refused or was out of allowance (see What Google said)';
   }
 
   for (const svc of services) {
@@ -216,8 +236,7 @@ async function main() {
     let res;
     try { res = await request(prompt.text); }
     catch (e) {
-      if (e.message === 'limit') { stopped = 'it reached the --limit of ' + o.limit + ' requests'; break; }
-      if (G.modelProblem(e)) { stopped = G.modelProblem(e) === 'network' ? 'Gemini could not be reached' : 'every model refused or was out of allowance (see What Google said)'; break; }
+      if ((stopped = stopReason(e))) break;
       failed.push(svc.name + ': ' + e.message); continue;
     }
     checked++;
@@ -252,8 +271,7 @@ async function main() {
     let res;
     try { res = await request(cardPrompt(card, today)); }
     catch (e) {
-      if (e.message === 'limit') { stopped = 'it reached the --limit of ' + o.limit + ' requests'; break; }
-      if (G.modelProblem(e)) { stopped = G.modelProblem(e) === 'network' ? 'Gemini could not be reached' : 'every model refused or was out of allowance (see What Google said)'; break; }
+      if ((stopped = stopReason(e))) break;
       failed.push(card.name + ': ' + e.message); continue;
     }
     checked++;

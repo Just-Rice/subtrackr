@@ -57,6 +57,7 @@ jobs:
           node scripts/check-prices.mjs --report "$RUNNER_TEMP/price-report.md" "${extra[@]}"
           cat "$RUNNER_TEMP/price-report.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Tests still pass with the new figures
+        if: inputs.probe != true
         run: npm test
       - name: Open a pull request
         if: steps.check.outputs.changed != '0' && inputs.dry_run != true && inputs.probe != true

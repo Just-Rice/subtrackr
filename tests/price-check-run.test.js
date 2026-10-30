@@ -73,8 +73,11 @@ test('the monthly check falls back across models, applies grounded changes and r
   }
 });
 
+const MODELS = (() => { const c = {}; require('vm').runInNewContext(fs.readFileSync(path.join(ROOT, 'js/data/gemini-models.js'), 'utf8') + ';this.M=GEMINI_MODELS', c); return c.M; })();
+const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /* a stand-in for a free key that may not use Google Search: every request with
-   the search tool is refused, everything else answers */
+   the search tool is refused, everything else answers (and reads the page) */
 function noSearchGemini() {
   const server = http.createServer((req, res) => {
     let body = '';
@@ -86,7 +89,9 @@ function noSearchGemini() {
         res.statusCode = 429;
         return res.end(JSON.stringify({ error: { status: 'RESOURCE_EXHAUSTED', message: 'Quota exceeded for metric: search_grounding_request, limit: 0' } }));
       }
-      res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text: /url_context/.test(tools) ? 'Standard is $19.99' : 'OK' }] } }] }));
+      const read = /url_context/.test(tools);
+      res.end(JSON.stringify({ candidates: [{ content: { parts: [{ text: read ? 'Standard is $19.99' : 'OK' }] },
+        urlContextMetadata: read ? { urlMetadata: [{ retrievedUrl: 'https://help.netflix.com/en/node/24926', urlRetrievalStatus: 'URL_RETRIEVAL_STATUS_SUCCESS' }] } : undefined }] }));
     });
   });
   return server;
@@ -107,8 +112,7 @@ test('when every model refuses, the report says so and quotes what Google said',
     const md = fs.readFileSync(report, 'utf8');
     assert.match(md, /\*\*Stopped early: every model refused or was out of allowance/);
     assert.match(md, /### What Google said/);
-    assert.match(md, /\*\*gemini-3\.8-flash\*\*: \[429\] RESOURCE_EXHAUSTED Quota exceeded for metric: search_grounding_request, limit: 0/);
-    assert.match(md, /\*\*gemini-3\.1-flash-lite\*\*/);
+    MODELS.forEach(m => assert.match(md, new RegExp('\\*\\*' + esc(m) + '\\*\\*: \\[429\\] RESOURCE_EXHAUSTED Quota exceeded for metric: search_grounding_request, limit: 0')));
   } finally {
     server.close();
     fs.rmSync(report, { force: true });
@@ -123,9 +127,9 @@ test('a probe reports which features each model allows, and changes nothing', as
   try {
     await runCheck(server, ['--probe', '--report', report]);
     const md = fs.readFileSync(report, 'utf8');
-    assert.match(md, /\| gemini-3\.8-flash \| plain answer \| works: OK \|/);
-    assert.match(md, /\| gemini-3\.8-flash \| Google Search \| refused: \[429\]/);
-    assert.match(md, /\| gemini-3\.1-flash-lite \| reading a page \| works: Standard is \$19\.99 \|/);
+    assert.match(md, new RegExp('\\| ' + esc(MODELS[0]) + ' \\| plain answer \\| works: OK \\|'));
+    assert.match(md, new RegExp('\\| ' + esc(MODELS[0]) + ' \\| Google Search \\| refused: \\[429\\]'));
+    assert.match(md, new RegExp('\\| ' + esc(MODELS.at(-1)) + ' \\| reading a page \\| works: Standard is \\$19\\.99 \\|'));
     assert.equal(fs.readFileSync(path.join(ROOT, 'js/data/catalog.js'), 'utf8'), catalogBefore);
   } finally {
     server.close();

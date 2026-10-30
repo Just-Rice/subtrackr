@@ -28,6 +28,7 @@ test('a failure is read as used up for the day, busy for the minute, missing, or
   assert.equal(G.modelProblem(new Error('[401] Firebase App Check token is invalid')), null);
   assert.equal(G.modelProblem(new Error('AI: Error fetching from https://firebasevertexai.googleapis.com/v1beta/projects/p/models/gemini-x:generateContent: Failed to fetch (AI/error)')), 'network');
   assert.equal(G.modelProblem(new TypeError('fetch failed')), 'network');
+  assert.equal(G.modelProblem(new Error('No reply from gemini-x within 90 seconds (timed out)')), 'network');
 });
 
 test('a model that gets no reply is passed over once, not remembered as spent', async () => {
