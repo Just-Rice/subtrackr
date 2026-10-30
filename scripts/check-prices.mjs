@@ -195,6 +195,8 @@ async function askRead(G, key, model, prompt) {
   }
 }
 
+/* plan names as Gemini writes them back: case, spacing and punctuation may differ */
+const planKey = s => String(s || '').toLowerCase().replace(/[^a-z0-9+]+/g, ' ').trim();
 const bare = u => String(u || '').replace(/[#?].*$/, '').replace(/\/+$/, '');
 const samePage = (a, b) => bare(a) === bare(b);
 
@@ -305,11 +307,11 @@ async function main() {
 
   for (const svc of services) {
     const markets = marketsOf(svc);
-    let res, where;
+    let res, where, prompt;
     try {
       where = await pagesFor(svc.company, svc.site, svc.name + ' plan prices', markets, pages[svc.id] || {});
       markets.filter(m => !where[m]).forEach(m => noPage.push(svc.name + ' (' + m + ')'));
-      const prompt = servicePrompt(svc, app.regions, today, where);
+      prompt = servicePrompt(svc, app.regions, today, where);
       if (!prompt.lines) continue;
       res = await request(model => askRead(G, key, model, prompt.text));
     } catch (e) {
@@ -317,18 +319,23 @@ async function main() {
       failed.push(svc.name + ': ' + e.message); continue;
     }
     checked++;
-    const items = [], figures = new Set();
-    (res.json.prices || []).forEach(p => {
-      const t = svc.tiers.find(x => x.name === p.tier);
-      if (!t) return;
+    console.log('  ' + svc.id + ' answer: ' + JSON.stringify(res.json).slice(0, 1200));
+    const items = [], figures = new Set(), answered = new Set(), strays = new Set();
+    (Array.isArray(res.json.prices) ? res.json.prices : []).forEach(p => {
+      const t = svc.tiers.find(x => planKey(x.name) === planKey(p.tier));
+      const market = String(p.market || '').toUpperCase();
+      if (!t) { if (p.tier) strays.add(String(p.tier)); return; }
       const yearly = !!(t.billedYearly && t.y);
-      const current = (yearly ? t.y : t.m)[p.market];
-      const region = app.regions[p.market];
-      if (current == null || !region || !where[p.market]) return;
-      if (p.amount == null) { unconfirmed++; return; }
-      figures.add(p.market);
-      items.push({ label: svc.name + ' — ' + t.name + ' (' + p.market + ')', tier: t, market: p.market, yearly, current, proposed: p.amount, cur: region.cur, source: p.source });
+      const current = (yearly ? t.y : t.m)[market];
+      const region = app.regions[market];
+      if (current == null || !region || !where[market] || p.amount == null || !isFinite(Number(p.amount))) return;
+      answered.add(t.name + '|' + market);
+      figures.add(market);
+      items.push({ label: svc.name + ' — ' + t.name + ' (' + market + ')', tier: t, market, yearly, current, proposed: Number(p.amount), cur: region.cur, source: p.source });
     });
+    /* every plan and market asked about that came back without a figure */
+    unconfirmed += prompt.lines - answered.size;
+    if (strays.size) notes.push(svc.name + ': answered for plans not in the catalogue — ' + [...strays].join(', '));
     const rv = review(items, res.read, svc.site);
     rv.apply.forEach(it => {
       if (it.yearly) {
@@ -361,6 +368,7 @@ async function main() {
       failed.push(card.name + ': ' + e.message); continue;
     }
     checked++;
+    console.log('  ' + card.id + ' answer: ' + JSON.stringify(res.json).slice(0, 1200));
     const j = res.json, items = [];
     const label = card.issuer + ' ' + card.name;
     if (j.fee && j.fee.amount != null) items.push({ label: label + ' — annual fee', kind: 'fee', current: card.fee, proposed: j.fee.amount, cur: card.cur, source: j.fee.source });

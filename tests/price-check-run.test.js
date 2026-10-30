@@ -50,7 +50,8 @@ function fakeGemini(opts = {}) {
           ? { prices: [
               { tier: 'Premium', market: 'US', amount: 27.99, source: 'https://help.netflix.com/en/node/24926' },
               { tier: 'Standard', market: 'US', amount: 19.99, source: 'https://help.netflix.com/en/node/24926' },
-              { tier: 'Standard with ads', market: 'US', amount: 18.99, source: 'https://help.netflix.com/en/node/24926' },
+              { tier: 'standard with ADS', market: 'us', amount: 18.99, source: 'https://help.netflix.com/en/node/24926' },
+              { tier: 'Ultra', market: 'US', amount: 34.99, source: 'https://help.netflix.com/en/node/24926' },
               { tier: 'Premium', market: 'GB', amount: null, source: '' }],
               notes: ['A new Ultra tier was announced'] }
           : { fee: { amount: 350, source: 'https://www.americanexpress.com/us/credit-cards/card/gold-card/' },
@@ -93,6 +94,8 @@ test('the monthly check finds each provider’s own pages, reads them, applies s
     assert.match(md, /annual fee \| 325 \| 350/);
     assert.match(md, /Standard with ads \(US\) \| 8\.99 \| 18\.99 \| moved more than 40%/);
     assert.match(md, /A new Ultra tier was announced/);
+    assert.match(md, /Netflix: answered for plans not in the catalogue — Ultra/);
+    assert.match(md, /3 could not be confirmed/, 'every plan asked about without a figure counts');
     assert.match(md, /### No pricing page to read[\s\S]*Netflix \(DE\)/);
     assert.match(md, /not saved in a dry run/);
     assert.match(md, /dry run/);
