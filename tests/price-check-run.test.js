@@ -7,6 +7,8 @@ const path = require('path');
 const vm = require('vm');
 const { execFile } = require('child_process');
 
+const { dataFile } = require('./load');
+
 const ROOT = path.join(__dirname, '..');
 const MODELS = (() => { const c = {}; vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'js/data/gemini-models.js'), 'utf8') + ';this.M=GEMINI_MODELS', c); return c.M; })();
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -65,7 +67,26 @@ function fakeGemini(opts = {}) {
   return { server, seen };
 }
 
-function runCheck(server, args, env = {}) {
+/* Every run gets its own copies of the frozen catalogue and cards (tests/fixtures) and
+   its own list of pricing pages, empty unless given. Nothing here reads or writes the
+   real files, so the monthly check changing them cannot fail these tests, and a test
+   that dies half-way cannot leave them changed. */
+function workspace(pages = '{}\n') {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'subtrackr-check-'));
+  const w = { catalog: path.join(dir, 'catalog.js'), cards: path.join(dir, 'cards.js'), pages: path.join(dir, 'pricing-pages.json') };
+  w.reset = () => {
+    fs.copyFileSync(dataFile('js/data/catalog.js'), w.catalog);
+    fs.copyFileSync(dataFile('js/data/cards.js'), w.cards);
+  };
+  w.reset();
+  fs.writeFileSync(w.pages, pages);
+  w.env = { CATALOG_FILE: w.catalog, CARDS_FILE: w.cards, PRICING_PAGES_FILE: w.pages };
+  w.remove = () => fs.rmSync(dir, { recursive: true, force: true });
+  return w;
+}
+
+function runCheck(server, args, env) {
+  if (!env || !env.CATALOG_FILE || !env.CARDS_FILE || !env.PRICING_PAGES_FILE) throw new Error('runCheck needs a workspace().env, so it cannot touch the real files');
   return new Promise((resolve, reject) => execFile(process.execPath, [path.join(ROOT, 'scripts/check-prices.mjs')].concat(args),
     { env: Object.assign({}, process.env, { GEMINI_API_KEY: 'test', GEMINI_PACE_MS: '0', GEMINI_PROBE_PACE_MS: '0', GEMINI_API_BASE: 'http://127.0.0.1:' + server.address().port, GITHUB_OUTPUT: '' }, env) },
     (err, stdout, stderr) => (err ? reject(new Error(stderr || err.message)) : resolve(stdout))));
@@ -79,11 +100,12 @@ async function withServer(fake, fn) {
 
 test('the monthly check finds each provider’s own pages, reads them, applies sourced changes and reports the rest', async () => {
   const fake = fakeGemini({ firstModelSpent: true });
-  const catalogBefore = fs.readFileSync(path.join(ROOT, 'js/data/catalog.js'), 'utf8');
-  const cardsBefore = fs.readFileSync(path.join(ROOT, 'js/data/cards.js'), 'utf8');
-  const pagesBefore = fs.readFileSync(path.join(ROOT, 'scripts/data/pricing-pages.json'), 'utf8');
+  const w = workspace();
+  const catalogBefore = fs.readFileSync(w.catalog, 'utf8');
+  const cardsBefore = fs.readFileSync(w.cards, 'utf8');
+  const pagesBefore = fs.readFileSync(w.pages, 'utf8');
   await withServer(fake, async report => {
-    const out = await runCheck(fake.server, ['--only', 'netflix,amex-gold', '--dry-run', '--report', report]);
+    const out = await runCheck(fake.server, ['--only', 'netflix,amex-gold', '--dry-run', '--report', report], w.env);
     const md = fs.readFileSync(report, 'utf8');
     assert.equal(fake.seen[0].model, MODELS[0]);
     assert.ok(fake.seen.slice(1).every(r => r.model === MODELS[1]), 'moved to the next model and stayed there');
@@ -100,18 +122,15 @@ test('the monthly check finds each provider’s own pages, reads them, applies s
     assert.match(md, /not saved in a dry run/);
     assert.match(md, /dry run/);
     assert.match(out, /netflix: 1 changed, 1 confirmed, 1 for a human, 2 pages read/);
-    assert.equal(fs.readFileSync(path.join(ROOT, 'js/data/catalog.js'), 'utf8'), catalogBefore, 'a dry run changes nothing');
-    assert.equal(fs.readFileSync(path.join(ROOT, 'js/data/cards.js'), 'utf8'), cardsBefore);
-    assert.equal(fs.readFileSync(path.join(ROOT, 'scripts/data/pricing-pages.json'), 'utf8'), pagesBefore);
-  });
+    assert.equal(fs.readFileSync(w.catalog, 'utf8'), catalogBefore, 'a dry run changes nothing');
+    assert.equal(fs.readFileSync(w.cards, 'utf8'), cardsBefore);
+    assert.equal(fs.readFileSync(w.pages, 'utf8'), pagesBefore);
+  }).finally(w.remove);
 });
 
 test('pages that were read and showed prices are remembered, and the next run reads them without asking again', async () => {
-  const pagesFile = path.join(os.tmpdir(), 'subtrackr-pages-' + process.pid + '.json');
-  fs.writeFileSync(pagesFile, '{}\n');
-  const env = { PRICING_PAGES_FILE: pagesFile };
-  const catalog = path.join(ROOT, 'js/data/catalog.js'), cards = path.join(ROOT, 'js/data/cards.js');
-  const catalogBefore = fs.readFileSync(catalog, 'utf8'), cardsBefore = fs.readFileSync(cards, 'utf8');
+  const w = workspace();
+  const env = w.env, pagesFile = w.pages;
   try {
     let fake = fakeGemini();
     await withServer(fake, report => runCheck(fake.server, ['--only', 'netflix,amex-gold', '--report', report], env));
@@ -120,45 +139,64 @@ test('pages that were read and showed prices are remembered, and the next run re
       'card:amex-gold': 'https://www.americanexpress.com/us/credit-cards/card/gold-card/',
       netflix: { US: 'https://help.netflix.com/en/node/24926' }
     }, 'GB was read but showed no figures, DE was not the provider’s site');
-    fs.writeFileSync(catalog, catalogBefore); fs.writeFileSync(cards, cardsBefore);
+    w.reset();   /* back to the figures before the first run's changes */
     fake = fakeGemini();
     await withServer(fake, report => runCheck(fake.server, ['--only', 'amex-gold', '--dry-run', '--report', report], env));
     assert.ok(!fake.seen.some(r => /give the official web page/.test(r.prompt)), 'a known page is read without asking for one');
   } finally {
-    fs.writeFileSync(catalog, catalogBefore); fs.writeFileSync(cards, cardsBefore);
-    fs.rmSync(pagesFile, { force: true });
+    w.remove();
   }
 });
 
 test('when every model refuses, the report says so and quotes what Google said', async () => {
   const fake = fakeGemini({ refuse: () => true });
+  const w = workspace();
   await withServer(fake, async report => {
-    await runCheck(fake.server, ['--only', 'netflix', '--dry-run', '--report', report]);
+    await runCheck(fake.server, ['--only', 'netflix', '--dry-run', '--report', report], w.env);
     const md = fs.readFileSync(report, 'utf8');
     assert.match(md, /\*\*Stopped early: every model refused or was out of allowance/);
     assert.match(md, /### What Google said/);
     MODELS.forEach(m => assert.match(md, new RegExp('\\*\\*' + esc(m) + '\\*\\*: \\[429\\] RESOURCE_EXHAUSTED Quota exceeded for metric: generate_content_free_tier_requests, limit: 0')));
-  });
+  }).finally(w.remove);
 });
 
 test('a probe reports which features each model allows, and changes nothing', async () => {
   const fake = fakeGemini({ refuse: body => /google_search/.test(JSON.stringify(body.tools || [])), refusal: 'You exceeded your current quota, please check your plan and billing details.' });
-  const catalogBefore = fs.readFileSync(path.join(ROOT, 'js/data/catalog.js'), 'utf8');
+  const w = workspace();
+  const catalogBefore = fs.readFileSync(w.catalog, 'utf8');
   await withServer(fake, async report => {
-    await runCheck(fake.server, ['--probe', '--report', report]);
+    await runCheck(fake.server, ['--probe', '--report', report], w.env);
     const md = fs.readFileSync(report, 'utf8');
     assert.match(md, new RegExp('\\| ' + esc(MODELS[0]) + ' \\| plain answer \\| works: OK \\|'));
     assert.match(md, new RegExp('\\| ' + esc(MODELS[0]) + ' \\| Google Search \\| refused: \\[429\\]'));
     assert.match(md, new RegExp('\\| ' + esc(MODELS.at(-1)) + ' \\| reading a page \\| works: Standard is \\$19\\.99 \\|'));
-    assert.equal(fs.readFileSync(path.join(ROOT, 'js/data/catalog.js'), 'utf8'), catalogBefore);
-  });
+    assert.equal(fs.readFileSync(w.catalog, 'utf8'), catalogBefore);
+  }).finally(w.remove);
 });
 
 test('a run past its time budget stops cleanly and still reports', async () => {
   const fake = fakeGemini();
+  const w = workspace();
   await withServer(fake, async report => {
-    await runCheck(fake.server, ['--only', 'netflix,amex-gold', '--dry-run', '--minutes', '0.0001', '--report', report]);
+    await runCheck(fake.server, ['--only', 'netflix,amex-gold', '--dry-run', '--minutes', '0.0001', '--report', report], w.env);
     const md = fs.readFileSync(report, 'utf8');
     assert.match(md, /\*\*Stopped early: it used its 0\.0001 minutes\*\*/);
-  });
+  }).finally(w.remove);
+});
+
+test('a figure that cannot be written goes to a person instead of ending the run', async () => {
+  const fake = fakeGemini();
+  const w = workspace();
+  /* the same card, with its fee laid out in a way the patcher does not know */
+  const cards = fs.readFileSync(w.cards, 'utf8');
+  const odd = cards.replace(/(card\('amex-gold',[\s\S]*?)\bfee: 325\b/, "$1'fee': 325");
+  assert.notEqual(odd, cards);
+  fs.writeFileSync(w.cards, odd);
+  await withServer(fake, async report => {
+    await runCheck(fake.server, ['--only', 'amex-gold', '--report', report], w.env);
+    const md = fs.readFileSync(report, 'utf8');
+    assert.match(md, /annual fee \| 325 \| 350 \| could not be written to the card list \(amex-gold fee not found\)/);
+    assert.match(md, /1 need a human look/, 'the run finished and wrote its report');
+    assert.match(fs.readFileSync(w.cards, 'utf8'), /'fee': 325/, 'the fee is left as it was');
+  }).finally(w.remove);
 });

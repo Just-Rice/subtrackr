@@ -35,6 +35,15 @@ const PURE = [
   'js/cloud/account.js'
 ];
 
+/* The two files the monthly price check rewrites. The tests run on copies of
+   them frozen in tests/fixtures (see the README there), so a changed price
+   cannot fail a test of the sums; load({ live: true }) reads the real ones. */
+const FROZEN = {
+  'js/data/catalog.js': 'tests/fixtures/catalog.js',
+  'js/data/cards.js': 'tests/fixtures/cards.js'
+};
+const dataFile = (f, live) => path.join(ROOT, (!live && FROZEN[f]) || f);
+
 function memoryStorage() {
   const m = new Map();
   return {
@@ -54,7 +63,7 @@ function load(opts) {
   ctx.window = ctx;
   vm.createContext(ctx);
   PURE.forEach(f => {
-    const file = path.join(ROOT, f);
+    const file = dataFile(f, o.live);
     if (!fs.existsSync(file)) return;          /* later phases add files */
     vm.runInContext(fs.readFileSync(file, 'utf8'), ctx, { filename: f });
   });
@@ -65,7 +74,7 @@ function load(opts) {
   return ctx;
 }
 
-module.exports = { load, memoryStorage };
+module.exports = { load, memoryStorage, dataFile };
 
 /* values built inside the vm carry its own Object/Array prototypes, which
    deepStrictEqual treats as different — compare through JSON instead */

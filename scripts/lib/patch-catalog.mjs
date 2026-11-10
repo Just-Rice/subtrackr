@@ -100,8 +100,11 @@ export function setCardBonus(src, id, key, value) {
   return replaceIn(src, sub, new RegExp('(\\b' + esc(key) + ':\\s*)([0-9.]+)'), value, id + ' bonus ' + key);
 }
 
+/* The credit's name sits between its id and the amount, in single quotes or, when it
+   has an apostrophe of its own ("Dunkin'"), in double quotes. */
+const NAME = "(?:'(?:[^'\\\\]|\\\\.)*'|\"(?:[^\"\\\\]|\\\\.)*\")";
 export function setCreditAmount(src, id, creditId, value) {
-  return replaceIn(src, cardBlock(src, id), new RegExp('(cr\\(' + esc(quoted(creditId)) + ",\\s*'(?:[^'\\\\]|\\\\.)*',\\s*)([0-9.]+)"), value, id + ' credit ' + creditId);
+  return replaceIn(src, cardBlock(src, id), new RegExp('(cr\\(' + esc(quoted(creditId)) + ',\\s*' + NAME + ',\\s*)([0-9.]+)'), value, id + ' credit ' + creditId);
 }
 
 export function setCardAsOf(src, id, ym) {

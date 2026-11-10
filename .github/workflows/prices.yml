@@ -58,6 +58,8 @@ jobs:
           # stop cleanly well inside the job's time limit, so what was done still opens a pull request
           node scripts/check-prices.mjs --minutes 270 --report "$RUNNER_TEMP/price-report.md" "${extra[@]}"
           cat "$RUNNER_TEMP/price-report.md" >> "$GITHUB_STEP_SUMMARY"
+      # The tests of the app's sums run on frozen figures (tests/fixtures), so a changed
+      # price cannot fail them; tests/live-data.test.js is what checks the new figures.
       - name: Tests still pass with the new figures
         if: inputs.probe != true
         run: npm test
@@ -69,7 +71,10 @@ jobs:
           commit-message: Price check for ${{ steps.check.outputs.month }}
           title: Price check — ${{ steps.check.outputs.month }}
           body-path: ${{ runner.temp }}/price-report.md
+          # pricing-pages.json is where the check remembers which page to read for each
+          # service; without it here the pages it found were thrown away after every run.
           add-paths: |
             js/data/catalog.js
             js/data/cards.js
+            scripts/data/pricing-pages.json
           delete-branch: true

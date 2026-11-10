@@ -28,7 +28,7 @@ test('every bundled logo is a small PNG that exists', () => {
 
 test('logo keys are catalogue services and card issuers', () => {
   const { services, issuers } = logos();
-  const ctx = load();
+  const ctx = load({ live: true });   /* the catalogue as shipped, not the frozen copy */
   const catalog = ctx.get('SERVICE_BY_ID');
   const cardIssuers = new Set(ctx.get('CARDS').map(c => c.issuer));
   Object.keys(services).forEach(id => assert.ok(catalog[id], id + ' is a catalogue service'));

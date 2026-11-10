@@ -38,8 +38,10 @@ import * as P from './lib/patch-catalog.mjs';
 import { review, domainOf, isOfficial } from './lib/price-review.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CATALOG_FILE = path.join(ROOT, 'js/data/catalog.js');
-const CARDS_FILE = path.join(ROOT, 'js/data/cards.js');
+/* CATALOG_FILE, CARDS_FILE and PRICING_PAGES_FILE point the check at other copies;
+   the tests use them so they never read or write the real files. */
+const CATALOG_FILE = process.env.CATALOG_FILE || path.join(ROOT, 'js/data/catalog.js');
+const CARDS_FILE = process.env.CARDS_FILE || path.join(ROOT, 'js/data/cards.js');
 const PAGES_FILE = process.env.PRICING_PAGES_FILE || path.join(ROOT, 'scripts/data/pricing-pages.json');
 const PACE_MS = Number(process.env.GEMINI_PACE_MS || 13000);   /* ~4.6 a minute: under the Flash free limit */
 
@@ -388,13 +390,19 @@ async function main() {
     });
     const rv = review(items, res.read, card.site);
     rv.apply.forEach(it => {
-      if (it.kind === 'fee') cardsSrc = P.setCardFee(cardsSrc, card.id, it.proposed);
-      else if (it.kind === 'bonus') cardsSrc = P.setCardBonus(cardsSrc, card.id, it.key, it.proposed);
-      else cardsSrc = P.setCreditAmount(cardsSrc, card.id, it.id, it.proposed);
-      applied.push(it);
+      try {
+        if (it.kind === 'fee') cardsSrc = P.setCardFee(cardsSrc, card.id, it.proposed);
+        else if (it.kind === 'bonus') cardsSrc = P.setCardBonus(cardsSrc, card.id, it.key, it.proposed);
+        else cardsSrc = P.setCreditAmount(cardsSrc, card.id, it.id, it.proposed);
+        applied.push(it);
+      } catch (e) {
+        human.push(Object.assign(it, { why: 'could not be written to the card list (' + e.message + ')' }));
+      }
     });
     human.push(...rv.human);
-    if (rv.apply.length || rv.confirmed.length) cardsSrc = P.setCardAsOf(cardsSrc, card.id, ym);
+    if (rv.apply.length || rv.confirmed.length) {
+      try { cardsSrc = P.setCardAsOf(cardsSrc, card.id, ym); } catch (e) { failed.push(label + ' checked date: ' + e.message); }
+    }
     if (keepPage(page, res.read, items.length > 0)) pages[id] = page; else delete pages[id];
     (j.notes || []).filter(Boolean).forEach(n => notes.push(label + ': ' + n));
     console.log(card.id + ': ' + rv.apply.length + ' changed, ' + rv.confirmed.length + ' confirmed, ' + rv.human.length + ' for a human, ' + res.read.length + ' pages read');

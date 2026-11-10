@@ -1,11 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
-const path = require('path');
 const vm = require('vm');
 
-const ROOT = path.join(__dirname, '..');
-const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const { dataFile } = require('./load');
+/* the catalogue and cards come from the frozen copies in tests/fixtures, so the
+   figures expected below hold after the monthly check has changed the real ones */
+const read = f => fs.readFileSync(dataFile(f), 'utf8');
 
 /* the patched text still runs and yields the catalogue */
 function evalData(files) {
@@ -99,4 +100,14 @@ test('a page counts as the provider’s own on its domain, a subdomain or a coun
   assert.equal(R.isOfficial('not a url', 'netflix.com'), false);
   assert.equal(R.brandOf('www.disneyplus.com'), 'disneyplus');
   assert.equal(R.brandOf('apple.co.jp'), 'apple');
+});
+
+test('a credit whose name is written in double quotes can be patched too', async () => {
+  const P = await import('../scripts/lib/patch-catalog.mjs');
+  const src = read('js/data/cards.js');
+  assert.match(src, /cr\('dunkin', "Dunkin'", 7,/, 'the frozen copy has the double-quoted name this is about');
+  const out = P.setCreditAmount(src, 'amex-gold', 'dunkin', 8);
+  const cards = evalData([['regions.js', read('js/data/regions.js')], ['catalog.js', read('js/data/catalog.js')], ['cards.js', out]]).cards;
+  assert.equal(cards.find(c => c.id === 'amex-gold').credits.find(c => c.id === 'dunkin').amount, 8);
+  assert.equal(out.split('\n').filter((l, i) => l !== src.split('\n')[i]).length, 1, 'one line changed');
 });

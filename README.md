@@ -158,6 +158,10 @@ catalogue patcher — is plain functions with Node tests and no dependencies:
 npm test        # node --test, Node 18+
 ```
 
+The tests of the app's sums use prices frozen in `tests/fixtures/`, because the monthly price
+check exists to change the real ones. `tests/live-data.test.js` checks the real catalogue and
+cards on their own terms (see `tests/fixtures/README.md`).
+
 The tests load the same classic scripts the page does, in the same order, into a Node
 `vm` context.
 
